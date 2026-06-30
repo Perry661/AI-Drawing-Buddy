@@ -14,6 +14,32 @@ const suggestionActions = [
 export function buildCritiquePrompt(input: MatrixRequest) {
   const maxX = input.width - 1;
   const maxY = input.height - 1;
+  const validCritiqueExample = {
+    summary: "The silhouette is clear, but contrast and focus can improve.",
+    suggestions: [
+      {
+        id: "s1",
+        title: "Darken upper-left edge",
+        reasoning: "A darker edge separates the focal shape from the background.",
+        target: { type: "pixel", x: 0, y: 0 },
+        action: "darken",
+      },
+      {
+        id: "s2",
+        title: "Simplify noisy corner",
+        reasoning: "Reducing detail in the corner keeps attention on the main shape.",
+        target: { type: "region", x: 0, y: 0, width: 1, height: 1 },
+        action: "simplify_shape",
+      },
+      {
+        id: "s3",
+        title: "Increase global contrast",
+        reasoning: "A broader contrast pass improves readability at small sizes.",
+        target: { type: "global" },
+        action: "increase_contrast",
+      },
+    ],
+  };
 
   return [
     "You are a practical pixel-art director.",
@@ -38,12 +64,12 @@ export function buildCritiquePrompt(input: MatrixRequest) {
     `Coordinate bounds: x must be 0 through ${maxX}; y must be 0 through ${maxY}.`,
     "Region bounds: x + width must be no more than canvas width; y + height must be no more than canvas height.",
     "Global targets must not include coordinates.",
-    'Valid example: {"summary":"The silhouette is clear, but contrast can improve.","suggestions":[{"id":"s1","title":"Darken upper-left edge","reasoning":"A darker edge separates the focal shape from the background.","target":{"type":"pixel","x":0,"y":0},"action":"darken"}]}',
+    `Valid example: ${JSON.stringify(validCritiqueExample)}`,
     `Canvas: ${input.width}x${input.height}`,
     `Palette: ${input.palette.join(", ")}`,
     `Pixels row-major: ${JSON.stringify(input.pixels)}`,
-    input.title ? `Title: ${input.title}` : "",
-    input.intent ? `Artist intent: ${input.intent}` : "",
+    input.title ? `Title: ${JSON.stringify(input.title)}` : "",
+    input.intent ? `Artist intent: ${JSON.stringify(input.intent)}` : "",
   ].filter(Boolean).join("\n");
 }
 

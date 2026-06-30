@@ -160,13 +160,9 @@ describe("AI schemas", () => {
       parseCritiqueResponse(8, 8, {
         summary: "The target pixel is outside the canvas.",
         suggestions: [
-          {
-            id: "s1",
-            title: "Fix one pixel",
-            reasoning: "The target pixel must fit the canvas.",
-            target: { type: "pixel", x: 8, y: 7 },
-            action: "darken",
-          },
+          makeSuggestion("s1", { type: "pixel", x: 8, y: 7 }),
+          makeSuggestion("s2"),
+          makeSuggestion("s3"),
         ],
       }),
     ).toThrow();
@@ -177,13 +173,9 @@ describe("AI schemas", () => {
       parseCritiqueResponse(8, 8, {
         summary: "The target region overflows the canvas.",
         suggestions: [
-          {
-            id: "s1",
-            title: "Fix a region",
-            reasoning: "The target region must fit the canvas.",
-            target: { type: "region", x: 6, y: 6, width: 3, height: 2 },
-            action: "darken",
-          },
+          makeSuggestion("s1", { type: "region", x: 6, y: 6, width: 3, height: 2 }),
+          makeSuggestion("s2"),
+          makeSuggestion("s3"),
         ],
       }),
     ).toThrow();

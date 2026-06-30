@@ -22,8 +22,9 @@ function sanitizeIpCandidate(value: string | undefined) {
 }
 
 export function getClientIp(headers: Headers) {
-  // Coarse MVP key extraction. Prefer platform-provided client IP headers when present;
-  // x-forwarded-for remains spoofable unless set by trusted infrastructure.
+  // Coarse MVP key extraction. These headers are only meaningful when set by a trusted
+  // deployment proxy; direct clients can spoof them, so this is abuse friction rather
+  // than an authentication or billing boundary.
   const platformIp = sanitizeIpCandidate(headers.get("x-real-ip") ?? undefined);
   if (platformIp) {
     return platformIp;
@@ -67,7 +68,7 @@ export function createInMemoryRateLimiter({ limit, windowMs, now = Date.now }: R
 }
 
 // Coarse MVP abuse protection only. This in-memory limiter is per server process,
-// not distributed or globally consistent across deployments.
+// depends on trusted proxy IP headers, and is not distributed or globally consistent.
 export const aiRateLimiter = createInMemoryRateLimiter({
   limit: 20,
   windowMs: 60_000,
