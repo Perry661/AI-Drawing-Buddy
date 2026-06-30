@@ -42,7 +42,7 @@ export function getAIErrorResponse(error: unknown) {
   }
 
   if (error instanceof OpenAIRequestError) {
-    return { message: "AI service unavailable.", status: 500 };
+    return { message: "AI service unavailable.", status: 502 };
   }
 
   return { message: "AI service unavailable.", status: 500 };

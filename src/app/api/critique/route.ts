@@ -4,19 +4,13 @@ import { getAIErrorResponse, requestJsonFromOpenAI } from "@/lib/ai/openai";
 import { parseCritiqueResponse, parseMatrixRequest } from "@/lib/ai/schemas";
 import type { MatrixRequest } from "@/lib/ai/schemas";
 
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
-
 export async function POST(request: Request) {
   let input: MatrixRequest;
   try {
     input = parseMatrixRequest(await request.json());
   } catch (error) {
-    return NextResponse.json(
-      { error: errorMessage(error, "Invalid pixel matrix request.") },
-      { status: 400 },
-    );
+    console.error("Invalid critique payload.", error);
+    return NextResponse.json({ error: "Invalid artwork payload." }, { status: 400 });
   }
 
   let raw;

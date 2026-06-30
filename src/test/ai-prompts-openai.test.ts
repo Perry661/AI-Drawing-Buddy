@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildCritiquePrompt, buildDemonstrationPrompt } from "@/lib/ai/prompts";
+import { getAllowedDemonstrationColors, validateDemonstrationPalette } from "@/lib/ai/palette";
 import {
   InvalidAIJsonError,
   MissingOpenAIKeyError,
@@ -7,6 +8,8 @@ import {
   getAIErrorResponse,
   parseOpenAIJson,
 } from "@/lib/ai/openai";
+import { POST as postCritique } from "@/app/api/critique/route";
+import { POST as postDemonstrate } from "@/app/api/demonstrate/route";
 import type { MatrixRequest, Suggestion } from "@/lib/ai/schemas";
 
 const matrix: MatrixRequest = {
@@ -25,6 +28,10 @@ const suggestion: Suggestion = {
   target: { type: "pixel", x: 1, y: 0 },
   action: "increase_contrast",
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("AI prompt builders", () => {
   it("includes critique response schema, allowed actions, target variants, bounds, and an example", () => {
@@ -87,7 +94,58 @@ describe("OpenAI helper errors", () => {
 
     expect(getAIErrorResponse(new OpenAIRequestError("provider-specific details"))).toEqual({
       message: "AI service unavailable.",
-      status: 500,
+      status: 502,
     });
+  });
+});
+
+describe("AI demonstration palette validation", () => {
+  it("allows request palette colors and transparent when the original artwork has transparent pixels", () => {
+    expect(getAllowedDemonstrationColors(matrix)).toEqual(["#000", "#fff", "transparent"]);
+    expect(validateDemonstrationPalette(matrix, ["#000", "#fff", "transparent", "#000"])).toBe(true);
+  });
+
+  it("rejects transparent when the request has no transparent source pixel", () => {
+    const opaqueMatrix = {
+      ...matrix,
+      pixels: ["#000", "#fff", "#000", "#fff"],
+    };
+
+    expect(getAllowedDemonstrationColors(opaqueMatrix)).toEqual(["#000", "#fff"]);
+    expect(validateDemonstrationPalette(opaqueMatrix, ["#000", "#fff", "transparent", "#000"])).toBe(false);
+  });
+
+  it("rejects colors outside the request palette", () => {
+    expect(validateDemonstrationPalette(matrix, ["#000", "#fff", "#f00", "#000"])).toBe(false);
+  });
+});
+
+describe("AI route validation responses", () => {
+  it("returns a stable critique 400 message for invalid artwork payloads", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await postCritique(
+      new Request("http://localhost/api/critique", {
+        method: "POST",
+        body: JSON.stringify({ width: 2, height: 2, pixels: ["#000"], palette: ["#000"] }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Invalid artwork payload." });
+  });
+
+  it("returns a stable demonstrate 400 message for invalid revision requests", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await postDemonstrate(
+      new Request("http://localhost/api/demonstrate", {
+        method: "POST",
+        body: JSON.stringify({ width: 2, height: 2, pixels: ["#000"], palette: ["#000"] }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "Invalid revision request." });
   });
 });

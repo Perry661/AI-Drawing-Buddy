@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildDemonstrationPrompt } from "@/lib/ai/prompts";
 import { getAIErrorResponse, requestJsonFromOpenAI } from "@/lib/ai/openai";
+import { validateDemonstrationPalette } from "@/lib/ai/palette";
 import {
   parseCritiqueResponse,
   parseDemonstrationResponse,
@@ -8,10 +9,6 @@ import {
   SuggestionSchema,
 } from "@/lib/ai/schemas";
 import type { MatrixRequest, Suggestion } from "@/lib/ai/schemas";
-
-function errorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
-}
 
 function readMatrixFields(body: Record<string, unknown>) {
   return {
@@ -40,10 +37,8 @@ export async function POST(request: Request) {
       suggestions: [suggestion],
     });
   } catch (error) {
-    return NextResponse.json(
-      { error: errorMessage(error, "Invalid demonstration request.") },
-      { status: 400 },
-    );
+    console.error("Invalid demonstration payload.", error);
+    return NextResponse.json({ error: "Invalid revision request." }, { status: 400 });
   }
 
   let raw;
@@ -56,7 +51,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    return NextResponse.json(parseDemonstrationResponse(input.width, input.height, raw));
+    const demonstration = parseDemonstrationResponse(input.width, input.height, raw);
+    if (!validateDemonstrationPalette(input, demonstration.pixels)) {
+      throw new Error("AI demonstration response used colors outside the allowed palette.");
+    }
+    return NextResponse.json(demonstration);
   } catch (error) {
     console.error("AI demonstration response failed validation.", error);
     return NextResponse.json({ error: "AI returned an invalid response." }, { status: 502 });

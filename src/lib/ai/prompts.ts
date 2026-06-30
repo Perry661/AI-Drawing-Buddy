@@ -1,4 +1,5 @@
 import type { MatrixRequest, Suggestion } from "./schemas";
+import { getAllowedDemonstrationColors } from "./palette";
 
 const suggestionActions = [
   "darken",
@@ -9,14 +10,6 @@ const suggestionActions = [
   "simplify_shape",
   "shift_hue",
 ];
-
-function allowedPixelColors(input: MatrixRequest) {
-  const colors = new Set(input.palette);
-  if (input.pixels.includes("transparent")) {
-    colors.add("transparent");
-  }
-  return Array.from(colors);
-}
 
 export function buildCritiquePrompt(input: MatrixRequest) {
   const maxX = input.width - 1;
@@ -56,7 +49,7 @@ export function buildCritiquePrompt(input: MatrixRequest) {
 
 export function buildDemonstrationPrompt(input: MatrixRequest, suggestion: Suggestion) {
   const pixelCount = input.width * input.height;
-  const colors = allowedPixelColors(input);
+  const colors = getAllowedDemonstrationColors(input);
 
   return [
     "You are revising a pixel-art matrix.",
