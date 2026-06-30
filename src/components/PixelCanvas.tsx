@@ -47,6 +47,7 @@ export function PixelCanvas({
         className="pixelCanvas"
         width={720}
         height={720}
+        style={{ touchAction: "none" }}
         onPointerDown={(event) => {
           if (!editable) return;
           event.currentTarget.setPointerCapture(event.pointerId);

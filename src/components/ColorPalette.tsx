@@ -20,6 +20,13 @@ function normalizeColorInputValue(color: string): string {
   return "#000000";
 }
 
+function getColorInputLabel(index: number, color: string): string {
+  if (color === "transparent") {
+    return `Edit swatch ${index + 1} (transparent uses #000000 color picker fallback)`;
+  }
+  return `Edit swatch ${index + 1}`;
+}
+
 export function ColorPalette({
   palette,
   selectedColor,
@@ -37,12 +44,13 @@ export function ColorPalette({
             type="button"
             style={{ background: color }}
             aria-label={`Select ${color}`}
+            aria-pressed={selectedColor === color}
             onClick={() => onSelect(color)}
           />
           <input
             type="color"
             value={normalizeColorInputValue(color)}
-            aria-label={`Edit swatch ${index + 1}`}
+            aria-label={getColorInputLabel(index, color)}
             onChange={(event) => onReplace(index, event.target.value)}
           />
         </div>
