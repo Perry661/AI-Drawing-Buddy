@@ -1,0 +1,60 @@
+import { z } from "zod";
+
+export const PixelColorSchema = z.string().min(1);
+
+export const MatrixRequestSchema = z.object({
+  width: z.number().int().positive().max(64),
+  height: z.number().int().positive().max(64),
+  pixels: z.array(PixelColorSchema),
+  palette: z.array(z.string().min(1)).min(1).max(32),
+  title: z.string().max(80).optional(),
+  intent: z.string().max(240).optional(),
+});
+
+export const SuggestionActionSchema = z.enum([
+  "darken",
+  "lighten",
+  "remove",
+  "add_highlight",
+  "increase_contrast",
+  "simplify_shape",
+  "shift_hue",
+]);
+
+export const SuggestionSchema = z.object({
+  id: z.string().min(1),
+  title: z.string().min(1).max(80),
+  reasoning: z.string().min(1).max(360),
+  target: z.object({
+    type: z.enum(["pixel", "region", "global"]),
+    x: z.number().int().nonnegative().optional(),
+    y: z.number().int().nonnegative().optional(),
+    width: z.number().int().positive().optional(),
+    height: z.number().int().positive().optional(),
+  }),
+  action: SuggestionActionSchema,
+});
+
+export const CritiqueResponseSchema = z.object({
+  summary: z.string().min(1).max(500),
+  suggestions: z.array(SuggestionSchema).min(1).max(5),
+});
+
+export const DemonstrationResponseSchema = z.object({
+  label: z.string().min(1).max(80),
+  explanation: z.string().min(1).max(500),
+  pixels: z.array(PixelColorSchema),
+});
+
+export type MatrixRequest = z.infer<typeof MatrixRequestSchema>;
+export type CritiqueResponse = z.infer<typeof CritiqueResponseSchema>;
+export type DemonstrationResponse = z.infer<typeof DemonstrationResponseSchema>;
+export type Suggestion = z.infer<typeof SuggestionSchema>;
+
+export function validateMatrixRequestPixels(input: MatrixRequest) {
+  return input.pixels.length === input.width * input.height;
+}
+
+export function validateDemonstrationPixels(width: number, height: number, response: DemonstrationResponse) {
+  return response.pixels.length === width * height;
+}
