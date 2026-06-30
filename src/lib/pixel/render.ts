@@ -1,20 +1,59 @@
 import type { PixelMatrix } from "./types";
 
-export function drawPixelMatrix(
+type PixelLayout = {
+  pixelSize: number;
+  offsetX: number;
+  offsetY: number;
+};
+
+type PixelPoint = {
+  x: number;
+  y: number;
+};
+
+function getPixelLayout(
   canvas: HTMLCanvasElement,
   matrix: PixelMatrix,
-  options: { showGrid?: boolean; background?: string } = {},
-) {
-  const context = canvas.getContext("2d");
-  if (!context) return;
+  rect?: DOMRect,
+): PixelLayout | null {
+  if (
+    !Number.isInteger(matrix.width) ||
+    !Number.isInteger(matrix.height) ||
+    matrix.width <= 0 ||
+    matrix.height <= 0 ||
+    canvas.width <= 0 ||
+    canvas.height <= 0 ||
+    (rect && (rect.width <= 0 || rect.height <= 0))
+  ) {
+    return null;
+  }
 
   const pixelSize = Math.floor(
     Math.min(canvas.width / matrix.width, canvas.height / matrix.height),
   );
-  const offsetX = Math.floor((canvas.width - pixelSize * matrix.width) / 2);
-  const offsetY = Math.floor((canvas.height - pixelSize * matrix.height) / 2);
+  if (pixelSize < 1) return null;
+
+  return {
+    pixelSize,
+    offsetX: Math.floor((canvas.width - pixelSize * matrix.width) / 2),
+    offsetY: Math.floor((canvas.height - pixelSize * matrix.height) / 2),
+  };
+}
+
+export function drawPixelMatrix(
+  canvas: HTMLCanvasElement,
+  matrix: PixelMatrix,
+  options: { showGrid?: boolean; background?: string } = {},
+): void {
+  const context = canvas.getContext("2d");
+  if (!context) return;
 
   context.clearRect(0, 0, canvas.width, canvas.height);
+
+  const layout = getPixelLayout(canvas, matrix, canvas.getBoundingClientRect());
+  if (!layout) return;
+
+  const { offsetX, offsetY, pixelSize } = layout;
   context.fillStyle = options.background ?? "#ffffff";
   context.fillRect(offsetX, offsetY, pixelSize * matrix.width, pixelSize * matrix.height);
 
@@ -51,17 +90,16 @@ export function canvasPointToPixel(
   matrix: PixelMatrix,
   clientX: number,
   clientY: number,
-) {
+): PixelPoint | null {
   const rect = canvas.getBoundingClientRect();
+  const layout = getPixelLayout(canvas, matrix, rect);
+  if (!layout) return null;
+
   const scaleX = canvas.width / rect.width;
   const scaleY = canvas.height / rect.height;
   const xOnCanvas = (clientX - rect.left) * scaleX;
   const yOnCanvas = (clientY - rect.top) * scaleY;
-  const pixelSize = Math.floor(
-    Math.min(canvas.width / matrix.width, canvas.height / matrix.height),
-  );
-  const offsetX = Math.floor((canvas.width - pixelSize * matrix.width) / 2);
-  const offsetY = Math.floor((canvas.height - pixelSize * matrix.height) / 2);
+  const { offsetX, offsetY, pixelSize } = layout;
   const x = Math.floor((xOnCanvas - offsetX) / pixelSize);
   const y = Math.floor((yOnCanvas - offsetY) / pixelSize);
   if (x < 0 || y < 0 || x >= matrix.width || y >= matrix.height) return null;
