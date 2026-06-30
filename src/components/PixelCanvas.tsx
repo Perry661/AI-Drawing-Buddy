@@ -50,6 +50,7 @@ export function PixelCanvas({
         style={{ touchAction: "none" }}
         onPointerDown={(event) => {
           if (!editable) return;
+          if (event.isPrimary === false || event.button !== 0) return;
           event.currentTarget.setPointerCapture(event.pointerId);
           setIsDrawing(true);
           handlePointer(event);

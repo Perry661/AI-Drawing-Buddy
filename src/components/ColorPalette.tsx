@@ -37,7 +37,7 @@ export function ColorPalette({
     <div className="palette" role="group" aria-label="Color palette">
       {palette.map((color, index) => (
         <div
-          key={`${color}-${index}`}
+          key={index}
           className={selectedColor === color ? "swatch activeSwatch" : "swatch"}
         >
           <button
