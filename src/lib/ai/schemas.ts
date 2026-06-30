@@ -5,7 +5,7 @@ export const PixelColorSchema = z.string().min(1);
 export const MatrixRequestSchema = z.object({
   width: z.number().int().positive().max(64),
   height: z.number().int().positive().max(64),
-  pixels: z.array(PixelColorSchema),
+  pixels: z.array(PixelColorSchema).max(64 * 64),
   palette: z.array(z.string().min(1)).min(1).max(32),
   title: z.string().max(80).optional(),
   intent: z.string().max(240).optional(),
@@ -55,7 +55,7 @@ export const CritiqueResponseSchema = z.object({
 export const DemonstrationResponseSchema = z.object({
   label: z.string().min(1).max(80),
   explanation: z.string().min(1).max(500),
-  pixels: z.array(PixelColorSchema),
+  pixels: z.array(PixelColorSchema).max(64 * 64),
 });
 
 export type MatrixRequest = z.infer<typeof MatrixRequestSchema>;
@@ -72,6 +72,30 @@ export function parseMatrixRequest(input: unknown) {
   if (!validateMatrixRequestPixels(parsed)) {
     throw new Error("Matrix request pixel count must match width * height.");
   }
+  return parsed;
+}
+
+export function parseCritiqueResponse(width: number, height: number, input: unknown) {
+  z.number().int().positive().max(64).parse(width);
+  z.number().int().positive().max(64).parse(height);
+
+  const parsed = CritiqueResponseSchema.parse(input);
+  const hasOutOfBoundsTarget = parsed.suggestions.some(({ target }) => {
+    if (target.type === "global") {
+      return false;
+    }
+
+    if (target.type === "pixel") {
+      return target.x >= width || target.y >= height;
+    }
+
+    return target.x + target.width > width || target.y + target.height > height;
+  });
+
+  if (hasOutOfBoundsTarget) {
+    throw new Error("Critique target must fit within the canvas.");
+  }
+
   return parsed;
 }
 

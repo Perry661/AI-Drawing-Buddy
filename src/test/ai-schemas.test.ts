@@ -1,16 +1,13 @@
 import { describe, expect, it } from "vitest";
-import * as aiSchemas from "@/lib/ai/schemas";
-
-const {
+import {
   CritiqueResponseSchema,
   DemonstrationResponseSchema,
+  MatrixRequestSchema,
+  parseCritiqueResponse,
+  parseDemonstrationResponse,
+  parseMatrixRequest,
   validateDemonstrationPixels,
-} = aiSchemas;
-
-const dimensionAwareSchemas = aiSchemas as typeof aiSchemas & {
-  parseMatrixRequest: (input: unknown) => unknown;
-  parseDemonstrationResponse: (width: number, height: number, input: unknown) => unknown;
-};
+} from "@/lib/ai/schemas";
 
 describe("AI schemas", () => {
   it("accepts a valid critique response", () => {
@@ -84,10 +81,103 @@ describe("AI schemas", () => {
     ).toThrow();
   });
 
-  it("rejects matrix requests with wrong pixel count", () => {
-    expect(dimensionAwareSchemas.parseMatrixRequest).toBeTypeOf("function");
+  it("accepts in-bounds parsed critique responses", () => {
+    const parsed = parseCritiqueResponse(8, 8, {
+      summary: "The silhouette reads clearly but needs stronger contrast.",
+      suggestions: [
+        {
+          id: "s1",
+          title: "Increase top-left contrast",
+          reasoning: "A darker corner frames the subject.",
+          target: { type: "pixel", x: 7, y: 7 },
+          action: "darken",
+        },
+      ],
+    });
+    expect(parsed).toMatchObject({ summary: "The silhouette reads clearly but needs stronger contrast." });
+  });
+
+  it("rejects out-of-bounds parsed critique pixel targets", () => {
     expect(() =>
-      dimensionAwareSchemas.parseMatrixRequest({
+      parseCritiqueResponse(8, 8, {
+        summary: "The target pixel is outside the canvas.",
+        suggestions: [
+          {
+            id: "s1",
+            title: "Fix one pixel",
+            reasoning: "The target pixel must fit the canvas.",
+            target: { type: "pixel", x: 8, y: 7 },
+            action: "darken",
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects overflowing parsed critique region targets", () => {
+    expect(() =>
+      parseCritiqueResponse(8, 8, {
+        summary: "The target region overflows the canvas.",
+        suggestions: [
+          {
+            id: "s1",
+            title: "Fix a region",
+            reasoning: "The target region must fit the canvas.",
+            target: { type: "region", x: 6, y: 6, width: 3, height: 2 },
+            action: "darken",
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("accepts parsed critique global targets", () => {
+    const parsed = parseCritiqueResponse(8, 8, {
+      summary: "The whole image needs stronger contrast.",
+      suggestions: [
+        {
+          id: "s1",
+          title: "Increase contrast",
+          reasoning: "The whole image reads too flat.",
+          target: { type: "global" },
+          action: "increase_contrast",
+        },
+      ],
+    });
+    expect(parsed).toMatchObject({ suggestions: [{ target: { type: "global" } }] });
+  });
+
+  it("rejects parsed critique responses with invalid canvas dimensions", () => {
+    expect(() =>
+      parseCritiqueResponse(0, 8, {
+        summary: "Invalid canvas dimensions.",
+        suggestions: [
+          {
+            id: "s1",
+            title: "Increase contrast",
+            reasoning: "The whole image reads too flat.",
+            target: { type: "global" },
+            action: "increase_contrast",
+          },
+        ],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects matrix requests with more than 64 by 64 pixels", () => {
+    expect(() =>
+      MatrixRequestSchema.parse({
+        width: 64,
+        height: 64,
+        pixels: Array.from({ length: 64 * 64 + 1 }, () => "#000"),
+        palette: ["#000"],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects matrix requests with wrong pixel count", () => {
+    expect(() =>
+      parseMatrixRequest({
         width: 2,
         height: 2,
         pixels: ["#000"],
@@ -97,7 +187,7 @@ describe("AI schemas", () => {
   });
 
   it("accepts matrix requests with exact pixel count", () => {
-    const parsed = dimensionAwareSchemas.parseMatrixRequest({
+    const parsed = parseMatrixRequest({
       width: 2,
       height: 2,
       pixels: ["#000", "#111", "#222", "transparent"],
@@ -124,10 +214,19 @@ describe("AI schemas", () => {
     expect(validateDemonstrationPixels(2, 2, response)).toBe(true);
   });
 
-  it("rejects parsed demonstration responses with wrong pixel count", () => {
-    expect(dimensionAwareSchemas.parseDemonstrationResponse).toBeTypeOf("function");
+  it("rejects demonstration responses with more than 64 by 64 pixels", () => {
     expect(() =>
-      dimensionAwareSchemas.parseDemonstrationResponse(2, 2, {
+      DemonstrationResponseSchema.parse({
+        label: "Too many pixels",
+        explanation: "The response exceeds the maximum canvas size.",
+        pixels: Array.from({ length: 64 * 64 + 1 }, () => "#000"),
+      }),
+    ).toThrow();
+  });
+
+  it("rejects parsed demonstration responses with wrong pixel count", () => {
+    expect(() =>
+      parseDemonstrationResponse(2, 2, {
         label: "Higher contrast",
         explanation: "Darkened the frame.",
         pixels: ["#000"],
@@ -136,7 +235,7 @@ describe("AI schemas", () => {
   });
 
   it("accepts parsed demonstration responses with exact pixel count", () => {
-    const parsed = dimensionAwareSchemas.parseDemonstrationResponse(2, 2, {
+    const parsed = parseDemonstrationResponse(2, 2, {
       label: "Higher contrast",
       explanation: "Darkened the frame.",
       pixels: ["#000", "#111", "#222", "transparent"],
