@@ -34,7 +34,7 @@ export function parseOpenAIJson(content: string) {
 
 export function getAIErrorResponse(error: unknown) {
   if (error instanceof MissingOpenAIKeyError) {
-    return { message: "AI service is not configured.", status: 503 };
+    return { message: "AI is not configured yet. Add OPENAI_API_KEY on the server.", status: 503 };
   }
 
   if (error instanceof InvalidAIJsonError) {

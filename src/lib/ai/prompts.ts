@@ -69,6 +69,7 @@ export function buildDemonstrationPrompt(input: MatrixRequest, suggestion: Sugge
     "}",
     `Preserve the exact canvas dimensions and return exactly ${pixelCount} pixels.`,
     "Make a focused revision based on the selected suggestion.",
+    "Avoid a complete replacement unless the selected suggestion target is global.",
     `Only use colors from this allowed color set: ${colors.join(", ")}.`,
     "Use transparent only where the original uses empty space or where it is needed to preserve empty space.",
     `Valid example: {"label":"Focused revision","explanation":"Adjusted only the selected area for readability.","pixels":${JSON.stringify(input.pixels)}}`,

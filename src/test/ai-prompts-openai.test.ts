@@ -64,6 +64,7 @@ describe("AI prompt builders", () => {
     expect(prompt).toContain("#000");
     expect(prompt).toContain("#fff");
     expect(prompt).toContain("transparent");
+    expect(prompt).toContain("Avoid a complete replacement unless the selected suggestion target is global.");
     expect(prompt).toContain("Valid example");
   });
 });
@@ -74,7 +75,9 @@ describe("OpenAI helper errors", () => {
   });
 
   it("maps typed AI errors to stable client responses", () => {
-    expect(getAIErrorResponse(new MissingOpenAIKeyError()).message).toBe("AI service is not configured.");
+    expect(getAIErrorResponse(new MissingOpenAIKeyError()).message).toBe(
+      "AI is not configured yet. Add OPENAI_API_KEY on the server.",
+    );
     expect(getAIErrorResponse(new MissingOpenAIKeyError()).status).toBe(503);
 
     expect(getAIErrorResponse(new InvalidAIJsonError())).toEqual({
