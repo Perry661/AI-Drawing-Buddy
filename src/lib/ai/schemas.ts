@@ -49,7 +49,7 @@ export const SuggestionSchema = z.object({
 
 export const CritiqueResponseSchema = z.object({
   summary: z.string().min(1).max(500),
-  suggestions: z.array(SuggestionSchema).min(1).max(5),
+  suggestions: z.array(SuggestionSchema).min(3).max(5),
 }).strict();
 
 export const DemonstrationResponseSchema = z.object({

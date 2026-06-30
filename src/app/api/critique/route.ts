@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { buildCritiquePrompt } from "@/lib/ai/prompts";
 import { getAIErrorResponse, requestJsonFromOpenAI } from "@/lib/ai/openai";
+import { aiRateLimiter, getClientIp } from "@/lib/ai/rateLimit";
 import { parseCritiqueResponse, parseMatrixRequest } from "@/lib/ai/schemas";
 import type { MatrixRequest } from "@/lib/ai/schemas";
 
@@ -11,6 +12,17 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Invalid critique payload.", error);
     return NextResponse.json({ error: "Invalid artwork payload." }, { status: 400 });
+  }
+
+  const rateLimit = aiRateLimiter.check(getClientIp(request.headers));
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many AI requests. Please try again later." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1000)) },
+      },
+    );
   }
 
   let raw;

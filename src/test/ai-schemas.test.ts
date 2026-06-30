@@ -10,18 +10,20 @@ import {
   validateDemonstrationPixels,
 } from "@/lib/ai/schemas";
 
+function makeSuggestion(id: string, target = { type: "region" as const, x: 0, y: 0, width: 4, height: 4 }) {
+  return {
+    id,
+    title: "Increase top-left contrast",
+    reasoning: "A darker corner frames the subject.",
+    target,
+    action: "darken" as const,
+  };
+}
+
 function parseCritiqueWithSuggestionId(id: string) {
   return CritiqueResponseSchema.parse({
     summary: "The silhouette reads clearly but needs stronger contrast.",
-    suggestions: [
-      {
-        id,
-        title: "Increase top-left contrast",
-        reasoning: "A darker corner frames the subject.",
-        target: { type: "region", x: 0, y: 0, width: 4, height: 4 },
-        action: "darken",
-      },
-    ],
+    suggestions: [makeSuggestion(id), makeSuggestion("s2"), makeSuggestion("s3")],
   });
 }
 
@@ -51,17 +53,18 @@ describe("AI schemas", () => {
   it("accepts a valid critique response", () => {
     const parsed = CritiqueResponseSchema.parse({
       summary: "The silhouette reads clearly but needs stronger contrast.",
-      suggestions: [
-        {
-          id: "s1",
-          title: "Increase top-left contrast",
-          reasoning: "A darker corner frames the subject.",
-          target: { type: "region", x: 0, y: 0, width: 4, height: 4 },
-          action: "darken",
-        },
-      ],
+      suggestions: [makeSuggestion("s1"), makeSuggestion("s2"), makeSuggestion("s3")],
     });
     expect(parsed.suggestions[0].target.type).toBe("region");
+  });
+
+  it("rejects critique responses with fewer than three suggestions", () => {
+    expect(() =>
+      CritiqueResponseSchema.parse({
+        summary: "The response needs more options.",
+        suggestions: [makeSuggestion("s1"), makeSuggestion("s2")],
+      }),
+    ).toThrow();
   });
 
   it("accepts safe suggestion IDs", () => {
@@ -144,13 +147,9 @@ describe("AI schemas", () => {
     const parsed = parseCritiqueResponse(8, 8, {
       summary: "The silhouette reads clearly but needs stronger contrast.",
       suggestions: [
-        {
-          id: "s1",
-          title: "Increase top-left contrast",
-          reasoning: "A darker corner frames the subject.",
-          target: { type: "pixel", x: 7, y: 7 },
-          action: "darken",
-        },
+        makeSuggestion("s1", { type: "pixel", x: 7, y: 7 }),
+        makeSuggestion("s2"),
+        makeSuggestion("s3"),
       ],
     });
     expect(parsed).toMatchObject({ summary: "The silhouette reads clearly but needs stronger contrast." });
@@ -201,9 +200,11 @@ describe("AI schemas", () => {
           target: { type: "global" },
           action: "increase_contrast",
         },
+        makeSuggestion("s2"),
+        makeSuggestion("s3"),
       ],
     });
-    expect(parsed).toMatchObject({ suggestions: [{ target: { type: "global" } }] });
+    expect(parsed.suggestions[0]).toMatchObject({ target: { type: "global" } });
   });
 
   it("rejects parsed critique responses with invalid canvas dimensions", () => {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { buildDemonstrationPrompt } from "@/lib/ai/prompts";
 import { getAIErrorResponse, requestJsonFromOpenAI } from "@/lib/ai/openai";
 import { validateDemonstrationPalette } from "@/lib/ai/palette";
+import { aiRateLimiter, getClientIp } from "@/lib/ai/rateLimit";
 import {
   parseCritiqueResponse,
   parseDemonstrationResponse,
@@ -39,6 +40,17 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Invalid demonstration payload.", error);
     return NextResponse.json({ error: "Invalid revision request." }, { status: 400 });
+  }
+
+  const rateLimit = aiRateLimiter.check(getClientIp(request.headers));
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { error: "Too many AI requests. Please try again later." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1000)) },
+      },
+    );
   }
 
   let raw;

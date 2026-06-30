@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildCritiquePrompt, buildDemonstrationPrompt } from "@/lib/ai/prompts";
 import { getAllowedDemonstrationColors, validateDemonstrationPalette } from "@/lib/ai/palette";
+import { createInMemoryRateLimiter, getClientIp } from "@/lib/ai/rateLimit";
 import {
   InvalidAIJsonError,
   MissingOpenAIKeyError,
@@ -117,6 +118,42 @@ describe("AI demonstration palette validation", () => {
 
   it("rejects colors outside the request palette", () => {
     expect(validateDemonstrationPalette(matrix, ["#000", "#fff", "#f00", "#000"])).toBe(false);
+  });
+
+  it("matches hex colors case-insensitively", () => {
+    const mixedCaseMatrix = {
+      ...matrix,
+      pixels: ["#ABCDEF", "#fff", "#000", "#fff"],
+      palette: ["#ABCDEF", "#fff"],
+    };
+
+    expect(validateDemonstrationPalette(mixedCaseMatrix, ["#abcdef", "#FFF", "#ABCDEF", "#fff"])).toBe(true);
+  });
+});
+
+describe("AI rate limiting", () => {
+  it("allows requests up to the limit and rejects later requests in the same window", () => {
+    const limiter = createInMemoryRateLimiter({ limit: 2, windowMs: 1000, now: () => 100 });
+
+    expect(limiter.check("client-a")).toEqual({ allowed: true });
+    expect(limiter.check("client-a")).toEqual({ allowed: true });
+    expect(limiter.check("client-a")).toEqual({ allowed: false, retryAfterMs: 1000 });
+  });
+
+  it("resets after the rate limit window", () => {
+    let now = 100;
+    const limiter = createInMemoryRateLimiter({ limit: 1, windowMs: 1000, now: () => now });
+
+    expect(limiter.check("client-a").allowed).toBe(true);
+    expect(limiter.check("client-a").allowed).toBe(false);
+
+    now = 1200;
+    expect(limiter.check("client-a").allowed).toBe(true);
+  });
+
+  it("uses the first forwarded IP or falls back to unknown", () => {
+    expect(getClientIp(new Headers({ "x-forwarded-for": "203.0.113.1, 198.51.100.2" }))).toBe("203.0.113.1");
+    expect(getClientIp(new Headers())).toBe("unknown");
   });
 });
 
