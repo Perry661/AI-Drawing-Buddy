@@ -1,15 +1,15 @@
 import { z } from "zod";
 
-export const PixelColorSchema = z.string().min(1);
+export const PixelColorSchema = z.string().max(11).regex(/^(transparent|#[0-9a-f]{3}|#[0-9a-f]{6})$/i);
 
 export const MatrixRequestSchema = z.object({
   width: z.number().int().positive().max(64),
   height: z.number().int().positive().max(64),
   pixels: z.array(PixelColorSchema).max(64 * 64),
-  palette: z.array(z.string().min(1)).min(1).max(32),
+  palette: z.array(PixelColorSchema).min(1).max(32),
   title: z.string().max(80).optional(),
   intent: z.string().max(240).optional(),
-});
+}).strict();
 
 export const SuggestionActionSchema = z.enum([
   "darken",
@@ -45,18 +45,18 @@ export const SuggestionSchema = z.object({
   reasoning: z.string().min(1).max(360),
   target: SuggestionTargetSchema,
   action: SuggestionActionSchema,
-});
+}).strict();
 
 export const CritiqueResponseSchema = z.object({
   summary: z.string().min(1).max(500),
   suggestions: z.array(SuggestionSchema).min(1).max(5),
-});
+}).strict();
 
 export const DemonstrationResponseSchema = z.object({
   label: z.string().min(1).max(80),
   explanation: z.string().min(1).max(500),
   pixels: z.array(PixelColorSchema).max(64 * 64),
-});
+}).strict();
 
 export type MatrixRequest = z.infer<typeof MatrixRequestSchema>;
 export type CritiqueResponse = z.infer<typeof CritiqueResponseSchema>;
