@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import type { PointerEvent } from "react";
 import { canvasPointToPixel, drawPixelMatrix } from "@/lib/pixel/render";
 import type { PixelMatrix } from "@/lib/pixel/types";
 
@@ -27,7 +28,7 @@ export function PixelCanvas({
     if (canvas) drawPixelMatrix(canvas, matrix, { showGrid: true });
   }, [matrix]);
 
-  function handlePointer(event: React.PointerEvent<HTMLCanvasElement>) {
+  function handlePointer(event: PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current;
     if (!canvas || !editable) return;
     const point = canvasPointToPixel(canvas, matrix, event.clientX, event.clientY);
@@ -47,14 +48,24 @@ export function PixelCanvas({
         width={720}
         height={720}
         onPointerDown={(event) => {
+          if (!editable) return;
+          event.currentTarget.setPointerCapture(event.pointerId);
           setIsDrawing(true);
           handlePointer(event);
         }}
         onPointerMove={(event) => {
-          if (isDrawing) handlePointer(event);
+          if (!isDrawing) return;
+          if ((event.buttons & 1) !== 1) {
+            setIsDrawing(false);
+            return;
+          }
+          handlePointer(event);
         }}
         onPointerUp={() => setIsDrawing(false)}
+        onPointerCancel={() => setIsDrawing(false)}
         onPointerLeave={() => setIsDrawing(false)}
+        onLostPointerCapture={() => setIsDrawing(false)}
+        aria-label={label}
       />
     </section>
   );

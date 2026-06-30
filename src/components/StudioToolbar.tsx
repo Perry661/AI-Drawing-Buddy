@@ -15,17 +15,25 @@ type StudioToolbarProps = {
 
 const tools: Tool[] = ["pencil", "eraser", "fill", "eyedropper"];
 
+const toolLabels: Record<Tool, string> = {
+  pencil: "Pencil",
+  eraser: "Eraser",
+  fill: "Fill",
+  eyedropper: "Eyedropper",
+};
+
 export function StudioToolbar(props: StudioToolbarProps) {
   return (
-    <div className="toolbar" aria-label="Drawing tools">
+    <div className="toolbar" role="toolbar" aria-label="Drawing tools">
       {tools.map((tool) => (
         <button
           key={tool}
           className={props.tool === tool ? "activeButton" : ""}
           type="button"
+          aria-pressed={props.tool === tool}
           onClick={() => props.onToolChange(tool)}
         >
-          {tool}
+          {toolLabels[tool]}
         </button>
       ))}
       <button type="button" onClick={props.onUndo} disabled={!props.canUndo}>

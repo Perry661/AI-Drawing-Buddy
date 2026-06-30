@@ -7,6 +7,19 @@ type ColorPaletteProps = {
   onReplace: (index: number, color: string) => void;
 };
 
+function normalizeColorInputValue(color: string): string {
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) return color.toLowerCase();
+  const shortHex = color.match(/^#([0-9a-fA-F]{3})$/);
+  if (shortHex) {
+    return `#${shortHex[1]
+      .split("")
+      .map((digit) => digit + digit)
+      .join("")
+      .toLowerCase()}`;
+  }
+  return "#000000";
+}
+
 export function ColorPalette({
   palette,
   selectedColor,
@@ -14,9 +27,9 @@ export function ColorPalette({
   onReplace,
 }: ColorPaletteProps) {
   return (
-    <div className="palette" aria-label="Color palette">
+    <div className="palette" role="group" aria-label="Color palette">
       {palette.map((color, index) => (
-        <label
+        <div
           key={`${color}-${index}`}
           className={selectedColor === color ? "swatch activeSwatch" : "swatch"}
         >
@@ -28,11 +41,11 @@ export function ColorPalette({
           />
           <input
             type="color"
-            value={color}
+            value={normalizeColorInputValue(color)}
             aria-label={`Edit swatch ${index + 1}`}
             onChange={(event) => onReplace(index, event.target.value)}
           />
-        </label>
+        </div>
       ))}
     </div>
   );
