@@ -9,6 +9,9 @@ type CanvasStubOptions = {
 };
 
 function createCanvasStub({ width, height, rect = {} }: CanvasStubOptions) {
+  const fillStyles: string[] = [];
+  const strokeStyles: string[] = [];
+  const lineWidths: number[] = [];
   const context = {
     beginPath: vi.fn(),
     clearRect: vi.fn(),
@@ -16,9 +19,24 @@ function createCanvasStub({ width, height, rect = {} }: CanvasStubOptions) {
     lineTo: vi.fn(),
     moveTo: vi.fn(),
     stroke: vi.fn(),
-    fillStyle: "",
-    lineWidth: 0,
-    strokeStyle: "",
+    get fillStyle() {
+      return fillStyles.at(-1) ?? "";
+    },
+    set fillStyle(value: string) {
+      fillStyles.push(value);
+    },
+    get lineWidth() {
+      return lineWidths.at(-1) ?? 0;
+    },
+    set lineWidth(value: number) {
+      lineWidths.push(value);
+    },
+    get strokeStyle() {
+      return strokeStyles.at(-1) ?? "";
+    },
+    set strokeStyle(value: string) {
+      strokeStyles.push(value);
+    },
   };
   const canvas = {
     width,
@@ -38,7 +56,7 @@ function createCanvasStub({ width, height, rect = {} }: CanvasStubOptions) {
     })),
   } as unknown as HTMLCanvasElement;
 
-  return { canvas, context };
+  return { canvas, context, fillStyles, lineWidths, strokeStyles };
 }
 
 const matrix: PixelMatrix = {
@@ -48,6 +66,34 @@ const matrix: PixelMatrix = {
 };
 
 describe("canvas pixel rendering helpers", () => {
+  it("draws the background, non-transparent pixels, and grid using centered offsets", () => {
+    const { canvas, context, fillStyles, lineWidths, strokeStyles } = createCanvasStub({
+      width: 100,
+      height: 80,
+    });
+    const drawMatrix: PixelMatrix = {
+      width: 2,
+      height: 2,
+      pixels: ["#ff0000", "transparent", "#0000ff", "transparent"],
+    };
+
+    drawPixelMatrix(canvas, drawMatrix, { background: "#eeeeee", showGrid: true });
+
+    expect(context.clearRect).toHaveBeenCalledWith(0, 0, 100, 80);
+    expect(context.fillRect).toHaveBeenNthCalledWith(1, 10, 0, 80, 80);
+    expect(context.fillRect).toHaveBeenNthCalledWith(2, 10, 0, 40, 40);
+    expect(context.fillRect).toHaveBeenNthCalledWith(3, 10, 40, 40, 40);
+    expect(context.fillRect).toHaveBeenCalledTimes(3);
+    expect(fillStyles).toEqual(["#eeeeee", "#ff0000", "#0000ff"]);
+    expect(strokeStyles).toEqual(["rgba(23, 23, 23, 0.12)"]);
+    expect(lineWidths).toEqual([1]);
+    expect(context.moveTo).toHaveBeenNthCalledWith(1, 10, 0);
+    expect(context.lineTo).toHaveBeenNthCalledWith(1, 10, 80);
+    expect(context.moveTo).toHaveBeenNthCalledWith(4, 10, 0);
+    expect(context.lineTo).toHaveBeenNthCalledWith(4, 90, 0);
+    expect(context.stroke).toHaveBeenCalledTimes(6);
+  });
+
   it("maps the top-left and bottom-right canvas coordinates to matrix pixels", () => {
     const { canvas } = createCanvasStub({ width: 100, height: 80 });
 
@@ -81,6 +127,13 @@ describe("canvas pixel rendering helpers", () => {
     expect(canvasPointToPixel(zeroHeight.canvas, matrix, 10, 10)).toBeNull();
   });
 
+  it("returns null for non-finite client coordinates", () => {
+    const { canvas } = createCanvasStub({ width: 80, height: 80 });
+
+    expect(canvasPointToPixel(canvas, matrix, Number.NaN, 10)).toBeNull();
+    expect(canvasPointToPixel(canvas, matrix, 10, Number.POSITIVE_INFINITY)).toBeNull();
+  });
+
   it("returns null when the canvas backing size is too small for the matrix", () => {
     const { canvas } = createCanvasStub({ width: 2, height: 2 });
 
@@ -111,6 +164,19 @@ describe("canvas pixel rendering helpers", () => {
     expect(context.clearRect).toHaveBeenCalledWith(0, 0, 2, 2);
     expect(context.fillRect).not.toHaveBeenCalled();
     expect(context.stroke).not.toHaveBeenCalled();
+  });
+
+  it("draws with a zero DOM rect when backing canvas dimensions are valid", () => {
+    const { canvas, context } = createCanvasStub({
+      width: 80,
+      height: 80,
+      rect: { width: 0, height: 0, right: 0, bottom: 0 },
+    });
+
+    drawPixelMatrix(canvas, matrix);
+
+    expect(context.clearRect).toHaveBeenCalledWith(0, 0, 80, 80);
+    expect(context.fillRect).toHaveBeenCalledWith(0, 0, 80, 80);
   });
 
   it("clears and skips drawing when the matrix has too few or too many pixels", () => {

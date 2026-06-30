@@ -15,13 +15,11 @@ type PixelPoint = {
 function getPixelLayout(
   canvas: HTMLCanvasElement,
   matrix: PixelMatrix,
-  rect?: DOMRect,
 ): PixelLayout | null {
   if (
     !validatePixelCount(matrix.width, matrix.height, matrix.pixels) ||
     canvas.width <= 0 ||
-    canvas.height <= 0 ||
-    (rect && (rect.width <= 0 || rect.height <= 0))
+    canvas.height <= 0
   ) {
     return null;
   }
@@ -48,7 +46,7 @@ export function drawPixelMatrix(
 
   context.clearRect(0, 0, canvas.width, canvas.height);
 
-  const layout = getPixelLayout(canvas, matrix, canvas.getBoundingClientRect());
+  const layout = getPixelLayout(canvas, matrix);
   if (!layout) return;
 
   const { offsetX, offsetY, pixelSize } = layout;
@@ -89,8 +87,12 @@ export function canvasPointToPixel(
   clientX: number,
   clientY: number,
 ): PixelPoint | null {
+  if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return null;
+
   const rect = canvas.getBoundingClientRect();
-  const layout = getPixelLayout(canvas, matrix, rect);
+  if (rect.width <= 0 || rect.height <= 0) return null;
+
+  const layout = getPixelLayout(canvas, matrix);
   if (!layout) return null;
 
   const scaleX = canvas.width / rect.width;
