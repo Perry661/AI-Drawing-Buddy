@@ -153,7 +153,21 @@ describe("AI rate limiting", () => {
 
   it("uses the first forwarded IP or falls back to unknown", () => {
     expect(getClientIp(new Headers({ "x-forwarded-for": "203.0.113.1, 198.51.100.2" }))).toBe("203.0.113.1");
+    expect(getClientIp(new Headers({ "x-forwarded-for": "not an ip" }))).toBe("unknown");
     expect(getClientIp(new Headers())).toBe("unknown");
+  });
+
+  it("prunes expired buckets during later checks", () => {
+    let now = 100;
+    const limiter = createInMemoryRateLimiter({ limit: 1, windowMs: 1000, now: () => now });
+
+    limiter.check("client-a");
+    limiter.check("client-b");
+    expect(limiter.getBucketCount()).toBe(2);
+
+    now = 1200;
+    limiter.check("client-c");
+    expect(limiter.getBucketCount()).toBe(1);
   });
 });
 

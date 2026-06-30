@@ -84,23 +84,31 @@ export function parseCritiqueResponse(width: number, height: number, input: unkn
   parseCanvasDimension(height);
 
   const parsed = CritiqueResponseSchema.parse(input);
-  const hasOutOfBoundsTarget = parsed.suggestions.some(({ target }) => {
-    if (target.type === "global") {
-      return false;
-    }
-
-    if (target.type === "pixel") {
-      return target.x >= width || target.y >= height;
-    }
-
-    return target.x + target.width > width || target.y + target.height > height;
-  });
-
-  if (hasOutOfBoundsTarget) {
-    throw new Error("Critique target must fit within the canvas.");
-  }
+  parsed.suggestions.forEach((suggestion) => validateSuggestionTargetBounds(width, height, suggestion));
 
   return parsed;
+}
+
+export function validateSuggestionTargetBounds(width: number, height: number, suggestion: Suggestion) {
+  parseCanvasDimension(width);
+  parseCanvasDimension(height);
+
+  const { target } = suggestion;
+  if (target.type === "global") {
+    return true;
+  }
+
+  if (target.type === "pixel") {
+    if (target.x >= width || target.y >= height) {
+      throw new Error("Suggestion target must fit within the canvas.");
+    }
+    return true;
+  }
+
+  if (target.x + target.width > width || target.y + target.height > height) {
+    throw new Error("Suggestion target must fit within the canvas.");
+  }
+  return true;
 }
 
 export function validateDemonstrationPixels(width: number, height: number, response: DemonstrationResponse) {

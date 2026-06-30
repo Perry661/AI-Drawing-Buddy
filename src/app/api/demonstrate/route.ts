@@ -4,10 +4,10 @@ import { getAIErrorResponse, requestJsonFromOpenAI } from "@/lib/ai/openai";
 import { validateDemonstrationPalette } from "@/lib/ai/palette";
 import { aiRateLimiter, getClientIp } from "@/lib/ai/rateLimit";
 import {
-  parseCritiqueResponse,
   parseDemonstrationResponse,
   parseMatrixRequest,
   SuggestionSchema,
+  validateSuggestionTargetBounds,
 } from "@/lib/ai/schemas";
 import type { MatrixRequest, Suggestion } from "@/lib/ai/schemas";
 
@@ -33,10 +33,7 @@ export async function POST(request: Request) {
 
     input = parseMatrixRequest(readMatrixFields(body as Record<string, unknown>));
     suggestion = SuggestionSchema.parse((body as Record<string, unknown>).suggestion);
-    parseCritiqueResponse(input.width, input.height, {
-      summary: "Selected suggestion.",
-      suggestions: [suggestion],
-    });
+    validateSuggestionTargetBounds(input.width, input.height, suggestion);
   } catch (error) {
     console.error("Invalid demonstration payload.", error);
     return NextResponse.json({ error: "Invalid revision request." }, { status: 400 });
