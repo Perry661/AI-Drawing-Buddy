@@ -21,17 +21,29 @@ export const SuggestionActionSchema = z.enum([
   "shift_hue",
 ]);
 
+export const SuggestionTargetSchema = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("pixel"),
+    x: z.number().int().nonnegative(),
+    y: z.number().int().nonnegative(),
+  }).strict(),
+  z.object({
+    type: z.literal("region"),
+    x: z.number().int().nonnegative(),
+    y: z.number().int().nonnegative(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
+  }).strict(),
+  z.object({
+    type: z.literal("global"),
+  }).strict(),
+]);
+
 export const SuggestionSchema = z.object({
   id: z.string().min(1),
   title: z.string().min(1).max(80),
   reasoning: z.string().min(1).max(360),
-  target: z.object({
-    type: z.enum(["pixel", "region", "global"]),
-    x: z.number().int().nonnegative().optional(),
-    y: z.number().int().nonnegative().optional(),
-    width: z.number().int().positive().optional(),
-    height: z.number().int().positive().optional(),
-  }),
+  target: SuggestionTargetSchema,
   action: SuggestionActionSchema,
 });
 
@@ -55,6 +67,22 @@ export function validateMatrixRequestPixels(input: MatrixRequest) {
   return input.pixels.length === input.width * input.height;
 }
 
+export function parseMatrixRequest(input: unknown) {
+  const parsed = MatrixRequestSchema.parse(input);
+  if (!validateMatrixRequestPixels(parsed)) {
+    throw new Error("Matrix request pixel count must match width * height.");
+  }
+  return parsed;
+}
+
 export function validateDemonstrationPixels(width: number, height: number, response: DemonstrationResponse) {
   return response.pixels.length === width * height;
+}
+
+export function parseDemonstrationResponse(width: number, height: number, input: unknown) {
+  const parsed = DemonstrationResponseSchema.parse(input);
+  if (!validateDemonstrationPixels(width, height, parsed)) {
+    throw new Error("Demonstration response pixel count must match width * height.");
+  }
+  return parsed;
 }
