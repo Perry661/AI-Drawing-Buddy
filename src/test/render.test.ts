@@ -55,6 +55,17 @@ describe("canvas pixel rendering helpers", () => {
     expect(canvasPointToPixel(canvas, matrix, 89, 79)).toEqual({ x: 3, y: 3 });
   });
 
+  it("maps coordinates through a scaled DOM rect", () => {
+    const { canvas } = createCanvasStub({
+      width: 160,
+      height: 160,
+      rect: { width: 80, height: 80, right: 80, bottom: 80 },
+    });
+
+    expect(canvasPointToPixel(canvas, matrix, 20, 20)).toEqual({ x: 1, y: 1 });
+    expect(canvasPointToPixel(canvas, matrix, 79, 79)).toEqual({ x: 3, y: 3 });
+  });
+
   it("returns null for coordinates in the padded canvas area", () => {
     const { canvas } = createCanvasStub({ width: 100, height: 80 });
 
@@ -76,6 +87,15 @@ describe("canvas pixel rendering helpers", () => {
     expect(canvasPointToPixel(canvas, matrix, 1, 1)).toBeNull();
   });
 
+  it("returns null when the matrix has too few or too many pixels", () => {
+    const { canvas } = createCanvasStub({ width: 80, height: 80 });
+    const tooShort: PixelMatrix = { ...matrix, pixels: matrix.pixels.slice(0, -1) };
+    const tooLong: PixelMatrix = { ...matrix, pixels: [...matrix.pixels, "#ff0000"] };
+
+    expect(canvasPointToPixel(canvas, tooShort, 10, 10)).toBeNull();
+    expect(canvasPointToPixel(canvas, tooLong, 10, 10)).toBeNull();
+  });
+
   it("returns null at the exact right and bottom matrix boundary", () => {
     const { canvas } = createCanvasStub({ width: 80, height: 80 });
 
@@ -91,5 +111,20 @@ describe("canvas pixel rendering helpers", () => {
     expect(context.clearRect).toHaveBeenCalledWith(0, 0, 2, 2);
     expect(context.fillRect).not.toHaveBeenCalled();
     expect(context.stroke).not.toHaveBeenCalled();
+  });
+
+  it("clears and skips drawing when the matrix has too few or too many pixels", () => {
+    const tooShort = createCanvasStub({ width: 80, height: 80 });
+    const tooLong = createCanvasStub({ width: 80, height: 80 });
+
+    drawPixelMatrix(tooShort.canvas, { ...matrix, pixels: matrix.pixels.slice(0, -1) });
+    drawPixelMatrix(tooLong.canvas, { ...matrix, pixels: [...matrix.pixels, "#ff0000"] });
+
+    expect(tooShort.context.clearRect).toHaveBeenCalledWith(0, 0, 80, 80);
+    expect(tooShort.context.fillRect).not.toHaveBeenCalled();
+    expect(tooShort.context.stroke).not.toHaveBeenCalled();
+    expect(tooLong.context.clearRect).toHaveBeenCalledWith(0, 0, 80, 80);
+    expect(tooLong.context.fillRect).not.toHaveBeenCalled();
+    expect(tooLong.context.stroke).not.toHaveBeenCalled();
   });
 });

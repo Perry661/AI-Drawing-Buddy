@@ -1,3 +1,4 @@
+import { validatePixelCount } from "./matrix";
 import type { PixelMatrix } from "./types";
 
 type PixelLayout = {
@@ -17,10 +18,7 @@ function getPixelLayout(
   rect?: DOMRect,
 ): PixelLayout | null {
   if (
-    !Number.isInteger(matrix.width) ||
-    !Number.isInteger(matrix.height) ||
-    matrix.width <= 0 ||
-    matrix.height <= 0 ||
+    !validatePixelCount(matrix.width, matrix.height, matrix.pixels) ||
     canvas.width <= 0 ||
     canvas.height <= 0 ||
     (rect && (rect.width <= 0 || rect.height <= 0))
