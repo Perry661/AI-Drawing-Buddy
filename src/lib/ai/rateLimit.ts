@@ -69,6 +69,8 @@ export function createInMemoryRateLimiter({ limit, windowMs, now = Date.now }: R
 
 // Coarse MVP abuse protection only. This in-memory limiter is per server process,
 // depends on trusted proxy IP headers, and is not distributed or globally consistent.
+// A production public deployment should enforce a distributed or platform-level
+// rate limit before traffic reaches these route handlers.
 export const aiRateLimiter = createInMemoryRateLimiter({
   limit: 20,
   windowMs: 60_000,

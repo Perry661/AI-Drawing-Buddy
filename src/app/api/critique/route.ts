@@ -6,14 +6,6 @@ import { parseCritiqueResponse, parseMatrixRequest } from "@/lib/ai/schemas";
 import type { MatrixRequest } from "@/lib/ai/schemas";
 
 export async function POST(request: Request) {
-  let input: MatrixRequest;
-  try {
-    input = parseMatrixRequest(await request.json());
-  } catch (error) {
-    console.error("Invalid critique payload.", error);
-    return NextResponse.json({ error: "Invalid artwork payload." }, { status: 400 });
-  }
-
   const rateLimit = aiRateLimiter.check(getClientIp(request.headers));
   if (!rateLimit.allowed) {
     return NextResponse.json(
@@ -23,6 +15,14 @@ export async function POST(request: Request) {
         headers: { "Retry-After": String(Math.ceil(rateLimit.retryAfterMs / 1000)) },
       },
     );
+  }
+
+  let input: MatrixRequest;
+  try {
+    input = parseMatrixRequest(await request.json());
+  } catch (error) {
+    console.error("Invalid critique payload.", error);
+    return NextResponse.json({ error: "Invalid artwork payload." }, { status: 400 });
   }
 
   let raw;

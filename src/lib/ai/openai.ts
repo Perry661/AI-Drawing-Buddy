@@ -64,6 +64,7 @@ export async function requestJsonFromOpenAI(prompt: string) {
       model: "gpt-4.1-mini",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
+      max_completion_tokens: 1200,
       temperature: 0.4,
     });
   } catch (error) {

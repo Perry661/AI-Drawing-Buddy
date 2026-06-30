@@ -48,6 +48,17 @@ function requestFor(path: string, body: unknown) {
   });
 }
 
+function rawRequestFor(path: string, body: string, ip: string) {
+  return new Request(`http://localhost${path}`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-real-ip": ip,
+    },
+    body,
+  });
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
   mockedRequestJsonFromOpenAI.mockReset();
@@ -108,5 +119,33 @@ describe("AI routes", () => {
 
     expect(response.status).toBe(502);
     expect(await response.json()).toEqual({ error: "AI returned an invalid response." });
+  });
+
+  it("rate limits critique requests before parsing invalid JSON", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let response: Response | undefined;
+
+    for (let i = 0; i < 21; i += 1) {
+      response = await postCritique(rawRequestFor("/api/critique", "{", "198.51.100.201"));
+    }
+
+    expect(response?.status).toBe(429);
+    expect(response?.headers.get("Retry-After")).toBe("60");
+    expect(await response?.json()).toEqual({ error: "Too many AI requests. Please try again later." });
+    expect(mockedRequestJsonFromOpenAI).not.toHaveBeenCalled();
+  });
+
+  it("rate limits demonstration requests before parsing invalid JSON", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let response: Response | undefined;
+
+    for (let i = 0; i < 21; i += 1) {
+      response = await postDemonstrate(rawRequestFor("/api/demonstrate", "{", "198.51.100.202"));
+    }
+
+    expect(response?.status).toBe(429);
+    expect(response?.headers.get("Retry-After")).toBe("60");
+    expect(await response?.json()).toEqual({ error: "Too many AI requests. Please try again later." });
+    expect(mockedRequestJsonFromOpenAI).not.toHaveBeenCalled();
   });
 });
