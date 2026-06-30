@@ -40,7 +40,7 @@ export const SuggestionTargetSchema = z.discriminatedUnion("type", [
 ]);
 
 export const SuggestionSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(40).regex(/^[A-Za-z0-9_-]+$/),
   title: z.string().min(1).max(80),
   reasoning: z.string().min(1).max(360),
   target: SuggestionTargetSchema,

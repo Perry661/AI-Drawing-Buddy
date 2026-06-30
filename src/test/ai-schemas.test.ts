@@ -10,6 +10,21 @@ import {
   validateDemonstrationPixels,
 } from "@/lib/ai/schemas";
 
+function parseCritiqueWithSuggestionId(id: string) {
+  return CritiqueResponseSchema.parse({
+    summary: "The silhouette reads clearly but needs stronger contrast.",
+    suggestions: [
+      {
+        id,
+        title: "Increase top-left contrast",
+        reasoning: "A darker corner frames the subject.",
+        target: { type: "region", x: 0, y: 0, width: 4, height: 4 },
+        action: "darken",
+      },
+    ],
+  });
+}
+
 describe("AI schemas", () => {
   it("accepts valid pixel colors", () => {
     expect(PixelColorSchema.parse("transparent")).toBe("transparent");
@@ -47,6 +62,27 @@ describe("AI schemas", () => {
       ],
     });
     expect(parsed.suggestions[0].target.type).toBe("region");
+  });
+
+  it("accepts safe suggestion IDs", () => {
+    expect(parseCritiqueWithSuggestionId("s1").suggestions[0].id).toBe("s1");
+    expect(parseCritiqueWithSuggestionId("suggestion-1").suggestions[0].id).toBe("suggestion-1");
+    expect(parseCritiqueWithSuggestionId("contrast_fix").suggestions[0].id).toBe("contrast_fix");
+  });
+
+  it("rejects overly long suggestion IDs", () => {
+    expect(() => parseCritiqueWithSuggestionId("s".repeat(41))).toThrow();
+  });
+
+  it("rejects suggestion IDs with whitespace", () => {
+    expect(() => parseCritiqueWithSuggestionId("suggestion 1")).toThrow();
+    expect(() => parseCritiqueWithSuggestionId(" suggestion-1")).toThrow();
+  });
+
+  it("rejects suggestion IDs with unsafe punctuation", () => {
+    expect(() => parseCritiqueWithSuggestionId("suggestion.1")).toThrow();
+    expect(() => parseCritiqueWithSuggestionId("suggestion/1")).toThrow();
+    expect(() => parseCritiqueWithSuggestionId("suggestion:1")).toThrow();
   });
 
   it("rejects malformed critique responses", () => {
