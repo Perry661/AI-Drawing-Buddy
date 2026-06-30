@@ -21,6 +21,7 @@ export function PixelCanvas({
   onPick,
 }: PixelCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const activePointerIdRef = useRef<number | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
 
   useEffect(() => {
@@ -37,6 +38,19 @@ export function PixelCanvas({
     else onPaint?.(point.x, point.y);
   }
 
+  function clearActivePointer(event: PointerEvent<HTMLCanvasElement>) {
+    if (activePointerIdRef.current !== event.pointerId) return;
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      // Pointer capture may already be released by the browser.
+    }
+    activePointerIdRef.current = null;
+    setIsDrawing(false);
+  }
+
   return (
     <section className="canvasPanel" aria-label={label}>
       <div className="panelHeader">
@@ -50,23 +64,33 @@ export function PixelCanvas({
         style={{ touchAction: "none" }}
         onPointerDown={(event) => {
           if (!editable) return;
+          if (activePointerIdRef.current !== null) return;
           if (event.isPrimary === false || event.button !== 0) return;
+          activePointerIdRef.current = event.pointerId;
           event.currentTarget.setPointerCapture(event.pointerId);
           setIsDrawing(true);
           handlePointer(event);
         }}
         onPointerMove={(event) => {
           if (!isDrawing) return;
+          if (activePointerIdRef.current !== event.pointerId) return;
+          if (event.isPrimary === false) return;
           if ((event.buttons & 1) !== 1) {
-            setIsDrawing(false);
+            clearActivePointer(event);
             return;
           }
           handlePointer(event);
         }}
-        onPointerUp={() => setIsDrawing(false)}
-        onPointerCancel={() => setIsDrawing(false)}
-        onPointerLeave={() => setIsDrawing(false)}
-        onLostPointerCapture={() => setIsDrawing(false)}
+        onPointerUp={clearActivePointer}
+        onPointerCancel={clearActivePointer}
+        onPointerLeave={(event) => {
+          if (activePointerIdRef.current === event.pointerId) setIsDrawing(false);
+        }}
+        onLostPointerCapture={(event) => {
+          if (activePointerIdRef.current !== event.pointerId) return;
+          activePointerIdRef.current = null;
+          setIsDrawing(false);
+        }}
         aria-label={label}
       />
     </section>
