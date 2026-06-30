@@ -63,6 +63,10 @@ export type CritiqueResponse = z.infer<typeof CritiqueResponseSchema>;
 export type DemonstrationResponse = z.infer<typeof DemonstrationResponseSchema>;
 export type Suggestion = z.infer<typeof SuggestionSchema>;
 
+function parseCanvasDimension(value: number) {
+  return z.number().int().positive().max(64).parse(value);
+}
+
 export function validateMatrixRequestPixels(input: MatrixRequest) {
   return input.pixels.length === input.width * input.height;
 }
@@ -76,8 +80,8 @@ export function parseMatrixRequest(input: unknown) {
 }
 
 export function parseCritiqueResponse(width: number, height: number, input: unknown) {
-  z.number().int().positive().max(64).parse(width);
-  z.number().int().positive().max(64).parse(height);
+  parseCanvasDimension(width);
+  parseCanvasDimension(height);
 
   const parsed = CritiqueResponseSchema.parse(input);
   const hasOutOfBoundsTarget = parsed.suggestions.some(({ target }) => {
@@ -104,6 +108,9 @@ export function validateDemonstrationPixels(width: number, height: number, respo
 }
 
 export function parseDemonstrationResponse(width: number, height: number, input: unknown) {
+  parseCanvasDimension(width);
+  parseCanvasDimension(height);
+
   const parsed = DemonstrationResponseSchema.parse(input);
   if (!validateDemonstrationPixels(width, height, parsed)) {
     throw new Error("Demonstration response pixel count must match width * height.");

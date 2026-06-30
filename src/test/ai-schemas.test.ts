@@ -234,6 +234,46 @@ describe("AI schemas", () => {
     ).toThrow();
   });
 
+  it("rejects parsed demonstration responses with zero dimensions", () => {
+    expect(() =>
+      parseDemonstrationResponse(0, 2, {
+        label: "Higher contrast",
+        explanation: "Darkened the frame.",
+        pixels: [],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects parsed demonstration responses with negative dimensions", () => {
+    expect(() =>
+      parseDemonstrationResponse(-2, -2, {
+        label: "Higher contrast",
+        explanation: "Darkened the frame.",
+        pixels: ["#000", "#111", "#222", "transparent"],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects parsed demonstration responses with fractional dimensions", () => {
+    expect(() =>
+      parseDemonstrationResponse(1.5, 2, {
+        label: "Higher contrast",
+        explanation: "Darkened the frame.",
+        pixels: ["#000", "#111", "#222"],
+      }),
+    ).toThrow();
+  });
+
+  it("rejects parsed demonstration responses with dimensions greater than 64", () => {
+    expect(() =>
+      parseDemonstrationResponse(65, 1, {
+        label: "Higher contrast",
+        explanation: "Darkened the frame.",
+        pixels: Array.from({ length: 65 }, () => "#000"),
+      }),
+    ).toThrow();
+  });
+
   it("accepts parsed demonstration responses with exact pixel count", () => {
     const parsed = parseDemonstrationResponse(2, 2, {
       label: "Higher contrast",
