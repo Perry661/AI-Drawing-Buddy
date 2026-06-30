@@ -21,6 +21,10 @@ export function createPixelMatrix(
   height: number,
   fill: PixelColor = TRANSPARENT,
 ): PixelMatrix {
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width <= 0 || height <= 0) {
+    throw new RangeError("Pixel matrix dimensions must be positive integers");
+  }
+
   return {
     width,
     height,
@@ -29,7 +33,14 @@ export function createPixelMatrix(
 }
 
 export function toIndex(matrix: PixelMatrix, x: number, y: number) {
-  if (x < 0 || y < 0 || x >= matrix.width || y >= matrix.height) {
+  if (
+    !Number.isInteger(x) ||
+    !Number.isInteger(y) ||
+    x < 0 ||
+    y < 0 ||
+    x >= matrix.width ||
+    y >= matrix.height
+  ) {
     throw new RangeError(`Pixel coordinate out of bounds: ${x}, ${y}`);
   }
   return y * matrix.width + x;
