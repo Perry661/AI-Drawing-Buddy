@@ -4,58 +4,58 @@ AI Drawing-Buddy is an AI-assisted pixel-art studio for the theme:
 
 > Create art that couldn't exist without technology.
 
-The project is designed as a practical creative tool. Artists draw pixel art first, then ask an AI art director for coordinate-aware critique and a side-by-side generated revision. The artwork evolves through a human-machine loop: draw, critique, compare, apply, and continue.
+Artists draw on a 16x16 pixel canvas, then ask an AI art director for coordinate-aware critique and a side-by-side generated revision. The artwork evolves through a human-machine loop: draw, critique, compare, apply, and continue.
 
-## Core Idea
+The project fits the theme by treating pixel art as structured data as well as an image. The canvas is a pixel matrix that software can inspect, discuss, revise, and return to the artist without replacing the artist's control.
 
-Traditional drawing tools can help you place marks on a canvas. AI Drawing-Buddy treats the artwork as a computational pixel matrix that an AI can inspect, discuss, and transform.
+## Features
 
-The AI should be able to say things like:
+- 16x16 pixel editor with pencil, eraser, fill bucket, and eyedropper tools.
+- Editable color palette with selectable swatches.
+- Undo, redo, clear canvas, and export PNG controls.
+- AI critique that reads the current artwork matrix and returns structured suggestions.
+- Show Me revision generation for a selected critique suggestion.
+- Apply Revision control that replaces the editable canvas only when the artist chooses.
+- Revision history for previously generated AI revisions.
 
-- "Darken the region around x:2-6, y:3-5 to frame the subject."
-- "Remove the isolated pixel at x:14, y:8 because it weakens the silhouette."
-- "Add a highlight near x:17, y:10 to improve the focal point."
+## Local Setup
 
-Then the app can generate a revised version next to the original, letting the artist compare the AI's interpretation without losing their own work.
-
-## Planned Experience
-
-- English-language interface.
-- Pixel editor with pencil, eraser, fill bucket, eyedropper, undo, redo, clear, and PNG export.
-- Side-by-side workspace: original canvas on the left, AI revision on the right.
-- AI critique panel with structured suggestions and specific coordinates or regions.
-- "Show Me" action that generates a revised pixel matrix.
-- "Apply Revision" action that updates the original only when the artist chooses.
-- Lightweight revision history for recent AI-generated versions.
-
-## Tech Plan
-
-- Next.js + TypeScript.
-- React client components for the editor.
-- HTML canvas rendering backed by a typed pixel matrix.
-- Next.js API routes for AI critique and demonstration.
-- OpenAI API key stored only on the server through `OPENAI_API_KEY`.
-- Vercel deployment.
-- Vitest for pixel matrix and schema tests.
-
-## Local Development
-
-The implementation plan is documented in:
-
-- `docs/superpowers/specs/2026-06-30-ai-pixel-co-creation-studio-design.md`
-- `docs/superpowers/plans/2026-06-30-ai-pixel-co-creation-studio.md`
-
-After the app is scaffolded:
+Install dependencies:
 
 ```bash
 npm install
-npm run dev
 ```
 
-For AI features, create `.env.local`:
+Create a local environment file:
+
+```bash
+cp .env.example .env.local
+```
+
+Add your server-side OpenAI key in `.env.local`:
 
 ```bash
 OPENAI_API_KEY=sk-your-key-here
 ```
 
-The browser must never receive this key. It should only call internal API routes such as `/api/critique` and `/api/demonstrate`.
+Start the development server:
+
+```bash
+npm run dev
+```
+
+## Scripts
+
+```bash
+npm test
+npm run lint
+npm run build
+```
+
+## Deployment
+
+For Vercel, set `OPENAI_API_KEY` as a server-side environment variable. The browser never receives the key; client code only calls internal API routes.
+
+## Privacy and Security
+
+Artwork is sent as a pixel matrix only to internal API routes and then to the configured AI provider for critique and revision. Do not commit `.env.local` or any real API key.
