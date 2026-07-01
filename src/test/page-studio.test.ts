@@ -252,6 +252,59 @@ describe("studio page composition", () => {
     expect(getAIPanel().selectedSuggestionId).toBe("contrast");
   });
 
+  it("uses the selected brush size for pencil and eraser strokes", () => {
+    renderPage();
+
+    expect(testState.captures.toolbar?.brushSize).toBe(1);
+    expect(testState.captures.toolbar?.maxBrushSize).toBe(16);
+
+    testState.captures.toolbar?.onBrushSizeChange(3);
+    renderPage();
+    getOriginalCanvas().onPaint?.(1, 1);
+    renderPage();
+
+    const afterPencil = getOriginalCanvas().matrix as PixelMatrix;
+    expect(afterPencil.pixels[0]).toBe("#111827");
+    expect(afterPencil.pixels[1]).toBe("#111827");
+    expect(afterPencil.pixels[2]).toBe("#111827");
+    expect(afterPencil.pixels[16]).toBe("#111827");
+    expect(afterPencil.pixels[17]).toBe("#111827");
+    expect(afterPencil.pixels[18]).toBe("#111827");
+    expect(afterPencil.pixels[32]).toBe("#111827");
+    expect(afterPencil.pixels[33]).toBe("#111827");
+    expect(afterPencil.pixels[34]).toBe("#111827");
+
+    testState.captures.toolbar?.onToolChange("eraser");
+    renderPage();
+    getOriginalCanvas().onPaint?.(1, 1);
+    renderPage();
+
+    const afterEraser = getOriginalCanvas().matrix as PixelMatrix;
+    expect(afterEraser.pixels[0]).toBe("transparent");
+    expect(afterEraser.pixels[17]).toBe("transparent");
+    expect(afterEraser.pixels[34]).toBe("transparent");
+  });
+
+  it("keeps fill and eyedropper single-point operations independent from brush size", () => {
+    renderPage();
+
+    testState.captures.toolbar?.onBrushSizeChange(5);
+    testState.captures.toolbar?.onToolChange("fill");
+    renderPage();
+    getOriginalCanvas().onPaint?.(0, 0);
+    renderPage();
+
+    const afterFill = getOriginalCanvas().matrix as PixelMatrix;
+    expect(afterFill.pixels.every((pixel) => pixel === "#111827")).toBe(true);
+
+    testState.captures.toolbar?.onToolChange("eyedropper");
+    renderPage();
+    getOriginalCanvas().onPaint?.(0, 0);
+    renderPage();
+
+    expect((getOriginalCanvas().matrix as PixelMatrix).pixels.every((pixel) => pixel === "#111827")).toBe(true);
+  });
+
   it("demonstrates a selected suggestion and applies the revision into original history", async () => {
     renderPage();
     await requestAndRenderCritique();

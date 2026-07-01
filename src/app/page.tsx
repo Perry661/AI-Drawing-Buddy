@@ -14,7 +14,6 @@ import {
   floodFill,
   getPixel,
   serializeMatrix,
-  setPixel,
 } from "@/lib/pixel/matrix";
 import { drawPixelMatrix } from "@/lib/pixel/render";
 import {
@@ -48,6 +47,27 @@ type AIRevisionItem = RevisionItem & {
 
 function getPaintColor(tool: Tool, selectedColor: PixelColor) {
   return tool === "eraser" ? TRANSPARENT : selectedColor;
+}
+
+function clampBrushSize(size: number, maxSize: number) {
+  return Math.max(1, Math.min(maxSize, Math.round(size)));
+}
+
+function paintBrush(matrix: PixelMatrix, x: number, y: number, size: number, color: PixelColor): PixelMatrix {
+  const nextPixels = [...matrix.pixels];
+  const startX = x - Math.floor(size / 2);
+  const startY = y - Math.floor(size / 2);
+
+  for (let brushY = 0; brushY < size; brushY += 1) {
+    for (let brushX = 0; brushX < size; brushX += 1) {
+      const targetX = startX + brushX;
+      const targetY = startY + brushY;
+      if (targetX < 0 || targetY < 0 || targetX >= matrix.width || targetY >= matrix.height) continue;
+      nextPixels[targetY * matrix.width + targetX] = color;
+    }
+  }
+
+  return { ...matrix, pixels: nextPixels };
 }
 
 function createMatrixRequest(matrix: PixelMatrix, palette: string[]): MatrixRequest {
@@ -84,6 +104,7 @@ export default function Home() {
     createHistoryState(createPixelMatrix(CANVAS_SIZE, CANVAS_SIZE)),
   );
   const [tool, setTool] = useState<Tool>("pencil");
+  const [brushSize, setBrushSize] = useState(1);
   const [palette, setPalette] = useState(INITIAL_PALETTE);
   const [selectedColor, setSelectedColor] = useState(INITIAL_PALETTE[0]);
   const [critique, setCritique] = useState<CritiqueResponse | null>(null);
@@ -142,7 +163,7 @@ export default function Home() {
     }
 
     const color = getPaintColor(tool, selectedColor);
-    const next = tool === "fill" ? floodFill(matrix, x, y, color) : setPixel(matrix, x, y, color);
+    const next = tool === "fill" ? floodFill(matrix, x, y, color) : paintBrush(matrix, x, y, brushSize, color);
     commitMatrix(next);
   }
 
@@ -258,9 +279,12 @@ export default function Home() {
         <aside className="leftRail" aria-label="Drawing controls">
           <StudioToolbar
             tool={tool}
+            brushSize={brushSize}
+            maxBrushSize={Math.min(matrix.width, matrix.height)}
             canUndo={history.past.length > 0}
             canRedo={history.future.length > 0}
             onToolChange={setTool}
+            onBrushSizeChange={(size) => setBrushSize(clampBrushSize(size, Math.min(matrix.width, matrix.height)))}
             onUndo={() => replaceHistory(undoHistory(history))}
             onRedo={() => replaceHistory(redoHistory(history))}
             onClear={() => commitMatrix(createPixelMatrix(CANVAS_SIZE, CANVAS_SIZE))}
