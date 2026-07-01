@@ -102,6 +102,27 @@ describe("AI browser client", () => {
     await expect(requestCritique(matrixRequest)).rejects.toThrow("AI request failed.");
   });
 
+  it("rejects successful critique responses with out-of-bounds targets", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          ...critique,
+          suggestions: [
+            {
+              ...critique.suggestions[0],
+              target: { type: "pixel", x: matrixRequest.width, y: 0 },
+            },
+            critique.suggestions[1],
+            critique.suggestions[2],
+          ],
+        }),
+      ),
+    );
+
+    await expect(requestCritique(matrixRequest)).rejects.toThrow("AI request failed.");
+  });
+
   it("rejects invalid successful demonstration responses", async () => {
     vi.stubGlobal(
       "fetch",
@@ -110,6 +131,21 @@ describe("AI browser client", () => {
           label: "",
           explanation: "Missing a usable label.",
           pixels: matrixRequest.pixels,
+        }),
+      ),
+    );
+
+    await expect(requestDemonstration(matrixRequest, critique.suggestions[0])).rejects.toThrow("AI request failed.");
+  });
+
+  it("rejects successful demonstration responses with wrong pixel count", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          label: "Brightened highlight",
+          explanation: "Raised the selected highlight pixel.",
+          pixels: matrixRequest.pixels.slice(1),
         }),
       ),
     );

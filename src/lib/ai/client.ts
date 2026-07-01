@@ -1,6 +1,6 @@
 import {
-  CritiqueResponseSchema,
-  DemonstrationResponseSchema,
+  parseCritiqueResponse,
+  parseDemonstrationResponse,
   type CritiqueResponse,
   type DemonstrationResponse,
   type MatrixRequest,
@@ -49,11 +49,13 @@ async function postJson<TResponse>(
 }
 
 export function requestCritique(input: MatrixRequest) {
-  return postJson<CritiqueResponse>("/api/critique", input, (data) => CritiqueResponseSchema.parse(data));
+  return postJson<CritiqueResponse>("/api/critique", input, (data) =>
+    parseCritiqueResponse(input.width, input.height, data),
+  );
 }
 
 export function requestDemonstration(input: MatrixRequest, suggestion: Suggestion) {
   return postJson<DemonstrationResponse>("/api/demonstrate", { ...input, suggestion }, (data) =>
-    DemonstrationResponseSchema.parse(data),
+    parseDemonstrationResponse(input.width, input.height, data),
   );
 }
