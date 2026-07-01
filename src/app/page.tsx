@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AIPanel } from "@/components/AIPanel";
 import { ColorPalette } from "@/components/ColorPalette";
 import { PixelCanvas } from "@/components/PixelCanvas";
@@ -39,6 +39,13 @@ const INITIAL_PALETTE = [
   "#6366f1",
 ];
 
+const EMPTY_REVISION_LABEL = "AI Revision";
+const EMPTY_REVISION_EXPLANATION = "Select a suggestion and generate a revision to compare it here.";
+
+type AIRevisionItem = RevisionItem & {
+  baseSignature: string;
+};
+
 function getPaintColor(tool: Tool, selectedColor: PixelColor) {
   return tool === "eraser" ? TRANSPARENT : selectedColor;
 }
@@ -54,6 +61,10 @@ function createMatrixRequest(matrix: PixelMatrix, palette: string[]): MatrixRequ
 
 function createRevisionMatrix(base: PixelMatrix, pixels: PixelColor[]): PixelMatrix {
   return { ...base, pixels: [...pixels] };
+}
+
+function getCanvasSignature(matrix: PixelMatrix) {
+  return `${matrix.width}x${matrix.height}:${matrix.pixels.join("|")}`;
 }
 
 function exportMatrixAsPng(matrix: PixelMatrix) {
@@ -78,31 +89,50 @@ export default function Home() {
   const [critique, setCritique] = useState<CritiqueResponse | null>(null);
   const [selectedSuggestionId, setSelectedSuggestionId] = useState<string | null>(null);
   const [revisionMatrix, setRevisionMatrix] = useState<PixelMatrix | null>(null);
-  const [revisionLabel, setRevisionLabel] = useState("AI Revision");
-  const [revisionExplanation, setRevisionExplanation] = useState(
-    "Select a suggestion and generate a revision to compare it here.",
-  );
-  const [revisionHistory, setRevisionHistory] = useState<RevisionItem[]>([]);
+  const [revisionBaseSignature, setRevisionBaseSignature] = useState<string | null>(null);
+  const [revisionLabel, setRevisionLabel] = useState(EMPTY_REVISION_LABEL);
+  const [revisionExplanation, setRevisionExplanation] = useState(EMPTY_REVISION_EXPLANATION);
+  const [revisionHistory, setRevisionHistory] = useState<AIRevisionItem[]>([]);
   const [selectedRevisionId, setSelectedRevisionId] = useState<string | null>(null);
   const [loadingCritique, setLoadingCritique] = useState(false);
   const [loadingRevision, setLoadingRevision] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const matrix = history.present;
+  const matrixSignature = getCanvasSignature(matrix);
+  const currentMatrixSignatureRef = useRef(matrixSignature);
+  currentMatrixSignatureRef.current = matrixSignature;
   const selectedSuggestion = useMemo(
     () => critique?.suggestions.find((suggestion) => suggestion.id === selectedSuggestionId) ?? null,
     [critique, selectedSuggestionId],
   );
   const comparisonMatrix = revisionMatrix ?? createPixelMatrix(CANVAS_SIZE, CANVAS_SIZE);
 
+  function clearCanvasDerivedAIState() {
+    setCritique(null);
+    setSelectedSuggestionId(null);
+    setRevisionMatrix(null);
+    setRevisionBaseSignature(null);
+    setSelectedRevisionId(null);
+    setRevisionLabel(EMPTY_REVISION_LABEL);
+    setRevisionExplanation(EMPTY_REVISION_EXPLANATION);
+    setError(null);
+  }
+
   function commitMatrix(next: PixelMatrix) {
-    setHistory((current) => {
-      if (current.present === next) return current;
-      if (current.present.pixels.every((color, index) => color === next.pixels[index])) {
-        return current;
-      }
-      return applyHistoryChange(current, next);
-    });
+    if (history.present === next) return;
+    if (history.present.pixels.every((color, index) => color === next.pixels[index])) return;
+
+    currentMatrixSignatureRef.current = getCanvasSignature(next);
+    setHistory(applyHistoryChange(history, next));
+    clearCanvasDerivedAIState();
+  }
+
+  function replaceHistory(next: HistoryState) {
+    if (next === history || next.present === history.present) return;
+    currentMatrixSignatureRef.current = getCanvasSignature(next.present);
+    setHistory(next);
+    clearCanvasDerivedAIState();
   }
 
   function handlePaint(x: number, y: number) {
@@ -126,17 +156,25 @@ export default function Home() {
   }
 
   async function handleCritique() {
+    const requestMatrix = serializeMatrix(matrix);
+    const requestSignature = getCanvasSignature(requestMatrix);
+
     setLoadingCritique(true);
     setError(null);
     setCritique(null);
     setSelectedSuggestionId(null);
     setRevisionMatrix(null);
+    setRevisionBaseSignature(null);
     setSelectedRevisionId(null);
-    setRevisionLabel("AI Revision");
-    setRevisionExplanation("Select a suggestion and generate a revision to compare it here.");
+    setRevisionLabel(EMPTY_REVISION_LABEL);
+    setRevisionExplanation(EMPTY_REVISION_EXPLANATION);
 
     try {
-      const response = await requestCritique(createMatrixRequest(matrix, palette));
+      const response = await requestCritique(createMatrixRequest(requestMatrix, palette));
+      if (currentMatrixSignatureRef.current !== requestSignature) {
+        setError("The canvas changed before the critique finished. Get a new critique.");
+        return;
+      }
       setCritique(response);
       setSelectedSuggestionId(response.suggestions[0]?.id ?? null);
     } catch (requestError) {
@@ -149,19 +187,29 @@ export default function Home() {
   async function handleDemonstrate() {
     if (!selectedSuggestion) return;
 
+    const requestMatrix = serializeMatrix(matrix);
+    const requestSignature = getCanvasSignature(requestMatrix);
+
     setLoadingRevision(true);
     setError(null);
 
     try {
-      const response = await requestDemonstration(createMatrixRequest(matrix, palette), selectedSuggestion);
-      const nextMatrix = createRevisionMatrix(matrix, response.pixels);
-      const revision: RevisionItem = {
+      const response = await requestDemonstration(createMatrixRequest(requestMatrix, palette), selectedSuggestion);
+      if (currentMatrixSignatureRef.current !== requestSignature) {
+        setError("The canvas changed before the revision finished. Request a new revision.");
+        return;
+      }
+
+      const nextMatrix = createRevisionMatrix(requestMatrix, response.pixels);
+      const revision: AIRevisionItem = {
         id: `${Date.now()}-${selectedSuggestion.id}`,
         label: response.label,
         explanation: response.explanation,
         matrix: nextMatrix,
+        baseSignature: requestSignature,
       };
       setRevisionMatrix(nextMatrix);
+      setRevisionBaseSignature(requestSignature);
       setRevisionLabel(response.label);
       setRevisionExplanation(response.explanation);
       setSelectedRevisionId(revision.id);
@@ -175,15 +223,25 @@ export default function Home() {
 
   function handleApplyRevision() {
     if (!revisionMatrix) return;
+    if (revisionBaseSignature !== currentMatrixSignatureRef.current) {
+      setError("This AI revision cannot be applied because the canvas changed since it was generated.");
+      return;
+    }
+
     commitMatrix(revisionMatrix);
     setSelectedRevisionId(null);
   }
 
   function handleSelectRevision(revision: RevisionItem) {
-    setRevisionMatrix(revision.matrix);
-    setRevisionLabel(revision.label);
-    setRevisionExplanation(revision.explanation);
-    setSelectedRevisionId(revision.id);
+    const storedRevision = revisionHistory.find((item) => item.id === revision.id);
+    if (!storedRevision) return;
+
+    setRevisionMatrix(storedRevision.matrix);
+    setRevisionBaseSignature(storedRevision.baseSignature);
+    setRevisionLabel(storedRevision.label);
+    setRevisionExplanation(storedRevision.explanation);
+    setSelectedRevisionId(storedRevision.id);
+    setError(null);
   }
 
   return (
@@ -203,8 +261,8 @@ export default function Home() {
             canUndo={history.past.length > 0}
             canRedo={history.future.length > 0}
             onToolChange={setTool}
-            onUndo={() => setHistory(undoHistory)}
-            onRedo={() => setHistory(redoHistory)}
+            onUndo={() => replaceHistory(undoHistory(history))}
+            onRedo={() => replaceHistory(redoHistory(history))}
             onClear={() => commitMatrix(createPixelMatrix(CANVAS_SIZE, CANVAS_SIZE))}
             onExport={() => exportMatrixAsPng(matrix)}
           />
