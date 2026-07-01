@@ -32,11 +32,14 @@ Create a local environment file:
 cp .env.example .env.local
 ```
 
-Add your server-side OpenAI key in `.env.local`:
+Add your server-side OpenRouter key in `.env.local`:
 
 ```bash
-OPENAI_API_KEY=sk-your-key-here
+OPENROUTER_API_KEY=sk-or-v1-your-key-here
+OPENROUTER_TEXT_MODEL=deepseek/deepseek-v4-pro
 ```
+
+`OPENROUTER_SITE_URL` and `OPENROUTER_APP_NAME` are optional OpenRouter attribution values. The included `.env.example` sets local defaults.
 
 Start the development server:
 
@@ -54,7 +57,7 @@ npm run build
 
 ## Deployment
 
-For Vercel, set `OPENAI_API_KEY` as a server-side environment variable. The browser never receives the key; client code only calls internal API routes.
+For Vercel, set `OPENROUTER_API_KEY` as a server-side environment variable. Keep `OPENROUTER_TEXT_MODEL` set to `deepseek/deepseek-v4-pro` unless you want to test another OpenRouter chat model. The browser never receives the key; client code only calls internal API routes.
 
 ## Privacy and Security
 

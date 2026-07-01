@@ -2,7 +2,7 @@ import OpenAI from "openai";
 
 export class MissingOpenAIKeyError extends Error {
   constructor() {
-    super("Missing OPENAI_API_KEY.");
+    super("Missing OPENROUTER_API_KEY.");
     this.name = "MissingOpenAIKeyError";
   }
 }
@@ -34,7 +34,7 @@ export function parseOpenAIJson(content: string) {
 
 export function getAIErrorResponse(error: unknown) {
   if (error instanceof MissingOpenAIKeyError) {
-    return { message: "AI is not configured yet. Add OPENAI_API_KEY on the server.", status: 503 };
+    return { message: "AI is not configured yet. Add OPENROUTER_API_KEY on the server.", status: 503 };
   }
 
   if (error instanceof InvalidAIJsonError) {
@@ -49,11 +49,19 @@ export function getAIErrorResponse(error: unknown) {
 }
 
 export function getOpenAIClient() {
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new MissingOpenAIKeyError();
   }
-  return new OpenAI({ apiKey });
+
+  return new OpenAI({
+    apiKey,
+    baseURL: "https://openrouter.ai/api/v1",
+    defaultHeaders: {
+      "HTTP-Referer": process.env.OPENROUTER_SITE_URL ?? "http://localhost:3000",
+      "X-OpenRouter-Title": process.env.OPENROUTER_APP_NAME ?? "AI Drawing Buddy",
+    },
+  });
 }
 
 export async function requestJsonFromOpenAI(prompt: string) {
@@ -61,14 +69,14 @@ export async function requestJsonFromOpenAI(prompt: string) {
   let response;
   try {
     response = await client.chat.completions.create({
-      model: "gpt-4.1-mini",
+      model: process.env.OPENROUTER_TEXT_MODEL ?? "deepseek/deepseek-v4-pro",
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
-      max_completion_tokens: 1200,
+      max_tokens: 1200,
       temperature: 0.4,
     });
   } catch (error) {
-    throw new OpenAIRequestError("OpenAI request failed.", error);
+    throw new OpenAIRequestError("OpenRouter request failed.", error);
   }
 
   const content = response.choices[0]?.message?.content;

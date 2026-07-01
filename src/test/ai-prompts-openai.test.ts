@@ -84,7 +84,7 @@ describe("OpenAI helper errors", () => {
 
   it("maps typed AI errors to stable client responses", () => {
     expect(getAIErrorResponse(new MissingOpenAIKeyError()).message).toBe(
-      "AI is not configured yet. Add OPENAI_API_KEY on the server.",
+      "AI is not configured yet. Add OPENROUTER_API_KEY on the server.",
     );
     expect(getAIErrorResponse(new MissingOpenAIKeyError()).status).toBe(503);
 
