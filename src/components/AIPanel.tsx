@@ -27,7 +27,11 @@ export function AIPanel(props: AIPanelProps) {
         </button>
       </div>
 
-      {props.error ? <p className="errorText">{props.error}</p> : null}
+      {props.error ? (
+        <p className="errorText" role="alert">
+          {props.error}
+        </p>
+      ) : null}
       {props.critique ? (
         <p className="summaryText">{props.critique.summary}</p>
       ) : (
@@ -40,6 +44,7 @@ export function AIPanel(props: AIPanelProps) {
             key={suggestion.id}
             type="button"
             className={props.selectedSuggestionId === suggestion.id ? "suggestion activeSuggestion" : "suggestion"}
+            aria-pressed={props.selectedSuggestionId === suggestion.id}
             onClick={() => props.onSelectSuggestion(suggestion)}
           >
             <strong>{suggestion.title}</strong>
@@ -49,10 +54,18 @@ export function AIPanel(props: AIPanelProps) {
       </div>
 
       <div className="aiActions">
-        <button type="button" onClick={props.onDemonstrate} disabled={!selected || props.loadingRevision}>
+        <button
+          type="button"
+          onClick={props.onDemonstrate}
+          disabled={!selected || props.loadingCritique || props.loadingRevision}
+        >
           {props.loadingRevision ? "Generating revision..." : "Show Me"}
         </button>
-        <button type="button" onClick={props.onApplyRevision} disabled={!props.hasRevision}>
+        <button
+          type="button"
+          onClick={props.onApplyRevision}
+          disabled={!props.hasRevision || props.loadingCritique || props.loadingRevision}
+        >
           Apply Revision
         </button>
       </div>

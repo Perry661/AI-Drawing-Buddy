@@ -6,10 +6,22 @@ async function postJson<TResponse>(url: string, body: unknown): Promise<TRespons
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error ?? "AI request failed.");
+
+  let data: unknown;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error("AI request failed.");
   }
+
+  if (!response.ok) {
+    const message =
+      typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
+        ? data.error
+        : "AI request failed.";
+    throw new Error(message);
+  }
+
   return data as TResponse;
 }
 
