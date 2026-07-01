@@ -17,12 +17,13 @@ type AIPanelProps = {
 
 export function AIPanel(props: AIPanelProps) {
   const selected = props.critique?.suggestions.find((suggestion) => suggestion.id === props.selectedSuggestionId) ?? null;
+  const loading = props.loadingCritique || props.loadingRevision;
 
   return (
     <section className="aiPanel" aria-label="AI critique">
       <div className="panelHeader">
         <h2>AI Art Director</h2>
-        <button type="button" onClick={props.onCritique} disabled={props.loadingCritique}>
+        <button type="button" onClick={props.onCritique} disabled={loading}>
           {props.loadingCritique ? "Thinking..." : "Get Critique"}
         </button>
       </div>
@@ -43,6 +44,7 @@ export function AIPanel(props: AIPanelProps) {
           <button
             key={suggestion.id}
             type="button"
+            disabled={loading}
             className={props.selectedSuggestionId === suggestion.id ? "suggestion activeSuggestion" : "suggestion"}
             aria-pressed={props.selectedSuggestionId === suggestion.id}
             onClick={() => props.onSelectSuggestion(suggestion)}
@@ -57,14 +59,14 @@ export function AIPanel(props: AIPanelProps) {
         <button
           type="button"
           onClick={props.onDemonstrate}
-          disabled={!selected || props.loadingCritique || props.loadingRevision}
+          disabled={!selected || loading}
         >
           {props.loadingRevision ? "Generating revision..." : "Show Me"}
         </button>
         <button
           type="button"
           onClick={props.onApplyRevision}
-          disabled={!props.hasRevision || props.loadingCritique || props.loadingRevision}
+          disabled={!props.hasRevision || loading}
         >
           Apply Revision
         </button>

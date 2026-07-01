@@ -1,11 +1,34 @@
-import type { CritiqueResponse, DemonstrationResponse, MatrixRequest, Suggestion } from "./schemas";
+import {
+  CritiqueResponseSchema,
+  DemonstrationResponseSchema,
+  type CritiqueResponse,
+  type DemonstrationResponse,
+  type MatrixRequest,
+  type Suggestion,
+} from "./schemas";
 
-async function postJson<TResponse>(url: string, body: unknown): Promise<TResponse> {
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+function getErrorMessage(data: unknown) {
+  if (typeof data === "object" && data !== null && "error" in data && typeof data.error === "string") {
+    return data.error;
+  }
+  return "AI request failed.";
+}
+
+async function postJson<TResponse>(
+  url: string,
+  body: unknown,
+  parseResponse: (data: unknown) => TResponse,
+): Promise<TResponse> {
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    throw new Error("AI request failed.");
+  }
 
   let data: unknown;
   try {
@@ -15,20 +38,22 @@ async function postJson<TResponse>(url: string, body: unknown): Promise<TRespons
   }
 
   if (!response.ok) {
-    const message =
-      typeof data === "object" && data !== null && "error" in data && typeof data.error === "string"
-        ? data.error
-        : "AI request failed.";
-    throw new Error(message);
+    throw new Error(getErrorMessage(data));
   }
 
-  return data as TResponse;
+  try {
+    return parseResponse(data);
+  } catch {
+    throw new Error("AI request failed.");
+  }
 }
 
 export function requestCritique(input: MatrixRequest) {
-  return postJson<CritiqueResponse>("/api/critique", input);
+  return postJson<CritiqueResponse>("/api/critique", input, (data) => CritiqueResponseSchema.parse(data));
 }
 
 export function requestDemonstration(input: MatrixRequest, suggestion: Suggestion) {
-  return postJson<DemonstrationResponse>("/api/demonstrate", { ...input, suggestion });
+  return postJson<DemonstrationResponse>("/api/demonstrate", { ...input, suggestion }, (data) =>
+    DemonstrationResponseSchema.parse(data),
+  );
 }

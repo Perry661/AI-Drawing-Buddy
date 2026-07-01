@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AIPanel } from "@/components/AIPanel";
 import { RevisionHistory } from "@/components/RevisionHistory";
-import { requestCritique } from "@/lib/ai/client";
+import { requestCritique, requestDemonstration } from "@/lib/ai/client";
 import type { CritiqueResponse } from "@/lib/ai/schemas";
 import type { PixelMatrix } from "@/lib/pixel/types";
 
@@ -67,10 +67,77 @@ describe("AI browser client", () => {
     await expect(requestCritique(matrixRequest)).rejects.toThrow("AI request failed.");
   });
 
+  it("preserves JSON server error messages", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(Response.json({ error: "Too many AI requests." }, { status: 429 })),
+    );
+
+    await expect(requestCritique(matrixRequest)).rejects.toThrow("Too many AI requests.");
+  });
+
   it("uses a stable message for invalid JSON success responses", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response("not json", { status: 200 })));
 
     await expect(requestCritique(matrixRequest)).rejects.toThrow("AI request failed.");
+  });
+
+  it("uses a stable message for network failures", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+
+    await expect(requestCritique(matrixRequest)).rejects.toThrow("AI request failed.");
+  });
+
+  it("rejects invalid successful critique responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          summary: "Too few suggestions.",
+          suggestions: [critique.suggestions[0]],
+        }),
+      ),
+    );
+
+    await expect(requestCritique(matrixRequest)).rejects.toThrow("AI request failed.");
+  });
+
+  it("rejects invalid successful demonstration responses", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        Response.json({
+          label: "",
+          explanation: "Missing a usable label.",
+          pixels: matrixRequest.pixels,
+        }),
+      ),
+    );
+
+    await expect(requestDemonstration(matrixRequest, critique.suggestions[0])).rejects.toThrow("AI request failed.");
+  });
+
+  it("posts the selected suggestion with the demonstration request", async () => {
+    const fetch = vi.fn().mockResolvedValue(
+      Response.json({
+        label: "Brightened highlight",
+        explanation: "Raised the selected highlight pixel.",
+        pixels: matrixRequest.pixels,
+      }),
+    );
+    vi.stubGlobal("fetch", fetch);
+
+    await expect(requestDemonstration(matrixRequest, critique.suggestions[0])).resolves.toEqual({
+      label: "Brightened highlight",
+      explanation: "Raised the selected highlight pixel.",
+      pixels: matrixRequest.pixels,
+    });
+
+    expect(fetch).toHaveBeenCalledWith("/api/demonstrate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...matrixRequest, suggestion: critique.suggestions[0] }),
+    });
   });
 });
 
@@ -112,6 +179,28 @@ describe("AI panel markup", () => {
     );
 
     expect(markup).toContain('disabled="">Show Me</button>');
+    expect(markup).toContain('disabled="">Apply Revision</button>');
+  });
+
+  it("disables critique and suggestion controls while revision is loading", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AIPanel, {
+        critique,
+        selectedSuggestionId: "s1",
+        loadingCritique: false,
+        loadingRevision: true,
+        error: null,
+        hasRevision: true,
+        onCritique: noop,
+        onSelectSuggestion: noop,
+        onDemonstrate: noop,
+        onApplyRevision: noop,
+      }),
+    );
+
+    expect(markup).toContain('disabled="">Get Critique</button>');
+    expect(markup).toContain('disabled="" class="suggestion activeSuggestion" aria-pressed="true"');
+    expect(markup).toContain('disabled="">Generating revision...</button>');
     expect(markup).toContain('disabled="">Apply Revision</button>');
   });
 
